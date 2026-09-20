@@ -12,6 +12,8 @@ import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../mod
 import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
+import { iamClient } from '../lib/huaweicloud/IamClient';
+import { codeArtsClient } from '../lib/huaweicloud/CodeArtsClient';
 
 const DOMAIN = 0x0000;
 
@@ -255,6 +257,35 @@ export default class EntryAbility extends UIAbility {
       JSON.parse(await appPref.get(appOption.rootFilesystems,
         JSON.stringify([defaultRootfs])) as string) as RootFilesystem[]
     AppStorage.setOrCreate(appOption.rootFilesystems, rootFilesystems)
+
+    // ===== AI 工作台配置 =====
+    const atomgitToken = await appPref.get(appOption.atomgitToken, '') as string;
+    AppStorage.setOrCreate(appOption.atomgitToken, atomgitToken);
+    const llmApiBase = await appPref.get(appOption.llmApiBase, '') as string;
+    AppStorage.setOrCreate(appOption.llmApiBase, llmApiBase);
+    const llmApiKey = await appPref.get(appOption.llmApiKey, '') as string;
+    AppStorage.setOrCreate(appOption.llmApiKey, llmApiKey);
+    const llmModel = await appPref.get(appOption.llmModel, 'deepseek-chat') as string;
+    AppStorage.setOrCreate(appOption.llmModel, llmModel);
+    const aiWorkbenchVisible = await appPref.get(appOption.aiWorkbenchVisible, false) as boolean;
+    AppStorage.setOrCreate(appOption.aiWorkbenchVisible, aiWorkbenchVisible);
+
+    // ===== 华为云 CodeArts 配置（AK/SK 认证）=====
+    const hwAk = await appPref.get(appOption.hwAk, '') as string;
+    AppStorage.setOrCreate(appOption.hwAk, hwAk);
+    const hwSk = await appPref.get(appOption.hwSk, '') as string;
+    AppStorage.setOrCreate(appOption.hwSk, hwSk);
+    const hwRegion = await appPref.get(appOption.hwRegion, 'cn-north-4') as string;
+    AppStorage.setOrCreate(appOption.hwRegion, hwRegion);
+    const codeartsProjectId = await appPref.get(appOption.codeartsProjectId, '') as string;
+    AppStorage.setOrCreate(appOption.codeartsProjectId, codeartsProjectId);
+
+    // 初始化华为云认证 + CodeArts 客户端
+    if (hwAk.length > 0 && hwSk.length > 0) {
+      iamClient.setCredentials(hwAk, hwSk, hwRegion);
+      codeArtsClient.setRegion(hwRegion);
+      codeArtsClient.setProjectId(codeartsProjectId);
+    }
   }
 
   private async extractKernelAndRootFilesystem(appContext: common.ApplicationContext): Promise<void> {

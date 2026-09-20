@@ -63,6 +63,17 @@ class appOption {
   static qemuImgTaskDescription = 'qemuImgTaskDescription';
   // QGA 连接状态 (Global Truth)
   static isQgaConnected = 'isQgaConnected';
+  // ===== AI 工作台（CodeArts 集成）=====
+  static atomgitToken = 'atomgitToken';       // AtomGit Access Token（CodeArts 第三方授权）
+  static llmApiBase = 'llmApiBase';           // LLM API 端点（OpenAI 兼容，如 https://api.deepseek.com/v1）
+  static llmApiKey = 'llmApiKey';             // LLM API Key
+  static llmModel = 'llmModel';               // LLM 模型名（如 deepseek-chat）
+  static aiWorkbenchVisible = 'aiWorkbenchVisible'; // AI 工作台是否显示（phone 切换）
+  // ===== 华为云 CodeArts（AK/SK 认证）=====
+  static hwAk = 'hwAk';                         // 华为云 Access Key
+  static hwSk = 'hwSk';                         // 华为云 Secret Key
+  static hwRegion = 'hwRegion';                 // 华为云 region（默认 cn-north-4）
+  static codeartsProjectId = 'codeartsProjectId'; // CodeArts 项目 ID
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {

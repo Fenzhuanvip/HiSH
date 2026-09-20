@@ -108,7 +108,10 @@ function startVm(options: VmOptions): boolean {
     fs.mkdirSync(options.sharedFolder)
   }
 
-  const supportJit: boolean = deviceInfo.deviceType !== 'phone';
+  // JIT 策略：自签名构建下 phone 也可启用 JIT（Mate60Pro+ 专属分支）
+  // 原逻辑为 deviceInfo.deviceType !== 'phone'，自签名后 phone 同样支持 JIT
+  const forceJit = AppStorage.get<boolean>('forceEnableJit') ?? true
+  const supportJit: boolean = forceJit || deviceInfo.deviceType !== 'phone';
 
   const started: boolean = napi.startVM({
     argsLines: args.join('\n'),

@@ -13,6 +13,7 @@ import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
 import VmStatusBar from '../components/VmStatusBar';
 import { ImmersiveButtonModifier, ImmersivePrimaryButtonModifier } from '../lib/immersiveButton';
+import AiWorkbench from '../components/ai/AiWorkbench';
 
 @Component
 struct PcIndex {
@@ -351,10 +352,11 @@ struct PcIndex {
 @Component
 struct PhoneOrTablet {
   @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
+  @StorageLink(appOption.aiWorkbenchVisible) showAiWorkbench: boolean = false
 
   build() {
     Column() {
-      if (this.displayStatusBar) {
+      if (this.displayStatusBar && !this.showAiWorkbench) {
         // 虚拟机状态监控条
         Row() {
           VmStatusBar({ reactive: true })
@@ -366,11 +368,39 @@ struct PhoneOrTablet {
         .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
       }
 
-      WebTerminal({ virtKeyEnabled: true })
-        .layoutWeight(1)
+      // 终端 / AI 工作台 切换栏
+      this.buildSwitcher()
+
+      if (this.showAiWorkbench) {
+        AiWorkbench()
+          .layoutWeight(1)
+      } else {
+        WebTerminal({ virtKeyEnabled: true })
+          .layoutWeight(1)
+      }
     }
     .width('100%')
     .height('100%')
+  }
+
+  @Builder
+  buildSwitcher() {
+    Row() {
+      Button('终端')
+        .fontSize(12)
+        .type(this.showAiWorkbench ? ButtonType.Normal : ButtonType.Capsule)
+        .layoutWeight(1)
+        .onClick(() => { this.showAiWorkbench = false })
+      Button('AI 工作台')
+        .fontSize(12)
+        .type(this.showAiWorkbench ? ButtonType.Capsule : ButtonType.Normal)
+        .layoutWeight(1)
+        .onClick(() => { this.showAiWorkbench = true })
+    }
+    .width('100%')
+    .height(36)
+    .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+    .backgroundColor($r('sys.color.comp_background_tertiary'))
   }
 }
 

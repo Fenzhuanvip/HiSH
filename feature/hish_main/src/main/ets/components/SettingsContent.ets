@@ -66,6 +66,24 @@ export default struct SettingsContent {
   @Watch('saveVncPort') @StorageProp(appOption.vncPort) vncPort: number = 5900
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
+  // AI 工作台配置
+  @StorageLink(appOption.atomgitToken) atomgitToken: string = ''
+  @StorageLink(appOption.llmApiBase) llmApiBase: string = ''
+  @StorageLink(appOption.llmApiKey) llmApiKey: string = ''
+  @StorageLink(appOption.llmModel) llmModel: string = 'deepseek-chat'
+  @State tokenInput: string = ''
+  @State llmBaseInput: string = ''
+  @State llmKeyInput: string = ''
+  @State llmModelInput: string = ''
+  // 华为云 CodeArts（AK/SK 认证）
+  @StorageLink(appOption.hwAk) hwAk: string = ''
+  @StorageLink(appOption.hwSk) hwSk: string = ''
+  @StorageLink(appOption.hwRegion) hwRegion: string = 'cn-north-4'
+  @StorageLink(appOption.codeartsProjectId) codeartsProjectId: string = ''
+  @State akInput: string = ''
+  @State skInput: string = ''
+  @State regionInput: string = ''
+  @State projectIdInput: string = ''
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -532,6 +550,139 @@ export default struct SettingsContent {
               const value: boolean = !this.displayStatusBar;
               AppStorage.setOrCreate(appOption.displayStatusBar, value)
               this.showDisplayStatusBarToast(value)
+            })
+          }
+          .attributeModifier(this.blockStyle)
+
+          BlockTitle({ content: 'AI 工作台（CodeArts）' })
+          Column() {
+            SettingItem({
+              title: 'AtomGit Token',
+              subTitle: 'CodeArts 第三方授权的 AtomGit Access Token',
+              content: () => {
+                TextInput({ text: this.atomgitToken, placeholder: '粘贴 Token' })
+                  .fontSize(12)
+                  .width('60%')
+                  .type(InputType.Password)
+                  .onChange((val: string) => {
+                    this.tokenInput = val
+                  })
+                  .onSubmit(() => {
+                    this.atomgitToken = this.tokenInput
+                    savePreference(appOption.atomgitToken, this.tokenInput, this.getUIContext())
+                  })
+              }
+            })
+            SettingItem({
+              title: 'LLM API 端点',
+              subTitle: 'OpenAI 兼容（如 https://api.deepseek.com/v1）',
+              content: () => {
+                TextInput({ text: this.llmApiBase, placeholder: 'https://...' })
+                  .fontSize(12)
+                  .width('60%')
+                  .onChange((val: string) => {
+                    this.llmBaseInput = val
+                  })
+                  .onSubmit(() => {
+                    this.llmApiBase = this.llmBaseInput
+                    savePreference(appOption.llmApiBase, this.llmBaseInput, this.getUIContext())
+                  })
+              }
+            })
+            SettingItem({
+              title: 'LLM API Key',
+              subTitle: 'AI 模型密钥',
+              content: () => {
+                TextInput({ text: this.llmApiKey, placeholder: 'sk-...' })
+                  .fontSize(12)
+                  .width('60%')
+                  .type(InputType.Password)
+                  .onChange((val: string) => {
+                    this.llmKeyInput = val
+                  })
+                  .onSubmit(() => {
+                    this.llmApiKey = this.llmKeyInput
+                    savePreference(appOption.llmApiKey, this.llmKeyInput, this.getUIContext())
+                  })
+              }
+            })
+            SettingItem({
+              title: 'LLM 模型',
+              subTitle: '模型名称',
+              content: () => {
+                TextInput({ text: this.llmModel, placeholder: 'deepseek-chat' })
+                  .fontSize(12)
+                  .width('60%')
+                  .onChange((val: string) => {
+                    this.llmModelInput = val
+                  })
+                  .onSubmit(() => {
+                    this.llmModel = this.llmModelInput
+                    savePreference(appOption.llmModel, this.llmModelInput, this.getUIContext())
+                  })
+              }
+            })
+          }
+          .attributeModifier(this.blockStyle)
+
+          BlockTitle({ content: '华为云 CodeArts（AK/SK）' })
+          Column() {
+            SettingItem({
+              title: 'Access Key (AK)',
+              subTitle: '华为云控制台 → 我的凭证 → 访问密钥',
+              content: () => {
+                TextInput({ text: this.hwAk, placeholder: 'AK...' })
+                  .fontSize(12)
+                  .width('60%')
+                  .onChange((val: string) => { this.akInput = val })
+                  .onSubmit(() => {
+                    this.hwAk = this.akInput
+                    savePreference(appOption.hwAk, this.akInput, this.getUIContext())
+                  })
+              }
+            })
+            SettingItem({
+              title: 'Secret Key (SK)',
+              subTitle: '华为云访问密钥 Secret',
+              content: () => {
+                TextInput({ text: this.hwSk, placeholder: 'SK...' })
+                  .fontSize(12)
+                  .width('60%')
+                  .type(InputType.Password)
+                  .onChange((val: string) => { this.skInput = val })
+                  .onSubmit(() => {
+                    this.hwSk = this.skInput
+                    savePreference(appOption.hwSk, this.skInput, this.getUIContext())
+                  })
+              }
+            })
+            SettingItem({
+              title: 'Region',
+              subTitle: '华为云区域',
+              content: () => {
+                TextInput({ text: this.hwRegion, placeholder: 'cn-north-4' })
+                  .fontSize(12)
+                  .width('60%')
+                  .onChange((val: string) => { this.regionInput = val })
+                  .onSubmit(() => {
+                    this.hwRegion = this.regionInput
+                    savePreference(appOption.hwRegion, this.regionInput, this.getUIContext())
+                  })
+              }
+            })
+            SettingItem({
+              title: 'CodeArts 项目 ID',
+              subTitle: 'CodeArts 项目的 project_id',
+              content: () => {
+                TextInput({ text: this.codeartsProjectId, placeholder: '项目ID' })
+                  .fontSize(12)
+                  .width('60%')
+                  .onChange((val: string) => { this.projectIdInput = val })
+                  .onSubmit(() => {
+                    this.codeartsProjectId = this.projectIdInput
+                    savePreference(appOption.codeartsProjectId, this.projectIdInput, this.getUIContext())
+                  })
+              }
             })
           }
           .attributeModifier(this.blockStyle)
