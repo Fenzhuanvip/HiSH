@@ -1,15 +1,15 @@
-import { atomGitApi } from '../../lib/atomgit/AtomGitApi';
-import { AtomGitRepo } from '../../lib/atomgit/types';
+import { codeArtsApi, CodeArtsRepository } from '../../lib/huaweicloud/CodeArtsApi';
 
 /**
- * 仓库列表 Tab
+ * 仓库列表 Tab —— 纯 CodeArts CodeHub
+ * 列出 CodeArts 项目下关联的代码仓库
  */
 @Component
 export struct RepoList {
-  @State repos: AtomGitRepo[] = []
+  @State repos: CodeArtsRepository[] = []
   @State loading: boolean = false
   @State errorMsg: string = ''
-  onRepoSelected: (repo: AtomGitRepo) => void = () => {}
+  onRepoSelected: (repo: CodeArtsRepository) => void = () => {}
 
   aboutToAppear(): void {
     this.loadRepos()
@@ -18,7 +18,7 @@ export struct RepoList {
   private async loadRepos(): Promise<void> {
     this.loading = true
     this.errorMsg = ''
-    const resp = await atomGitApi.listRepos(1, 50)
+    const resp = await codeArtsApi.listRepositories()
     this.loading = false
     if (resp.ok && resp.data) {
       this.repos = resp.data
@@ -37,15 +37,20 @@ export struct RepoList {
       } else if (this.errorMsg.length > 0) {
         Column() {
           Text(this.errorMsg).fontSize(12).fontColor($r('sys.color.font_secondary')).textAlign(TextAlign.Center)
+            .margin({ left: 16, right: 16 })
           Button('重试').margin({ top: 12 }).onClick(() => this.loadRepos())
+        }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
+      } else if (this.repos.length === 0) {
+        Column() {
+          Text('CodeArts 项目下暂无关联仓库').fontSize(12).fontColor($r('sys.color.font_secondary'))
         }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
       } else {
         List({ space: 8 }) {
-          ForEach(this.repos, (repo: AtomGitRepo) => {
+          ForEach(this.repos, (repo: CodeArtsRepository) => {
             ListItem() {
               this.buildRepoItem(repo)
             }
-          }, (repo: AtomGitRepo) => repo.full_name)
+          }, (repo: CodeArtsRepository) => repo.id)
         }
         .width('100%')
         .layoutWeight(1)
@@ -58,17 +63,17 @@ export struct RepoList {
   }
 
   @Builder
-  buildRepoItem(repo: AtomGitRepo) {
+  buildRepoItem(repo: CodeArtsRepository) {
     Row() {
       Column() {
         Row() {
-          Text(repo.full_name)
+          Text(repo.name)
             .fontSize(14)
             .fontColor($r('sys.color.font_primary'))
             .maxLines(1)
             .textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
-          if (repo.private) {
+          if (repo.visibility === 'private') {
             Text('私有')
               .fontSize(10)
               .fontColor($r('sys.color.font_on_primary'))
@@ -77,18 +82,9 @@ export struct RepoList {
               .padding({ left: 4, right: 4, top: 1, bottom: 1 })
               .margin({ left: 6 })
           }
-          if (repo.fork) {
-            Text('Fork')
-              .fontSize(10)
-              .fontColor($r('sys.color.font_secondary'))
-              .border({ width: 0.5, color: $r('sys.color.font_secondary') })
-              .borderRadius(4)
-              .padding({ left: 4, right: 4, top: 1, bottom: 1 })
-              .margin({ left: 6 })
-          }
         }
         .width('100%')
-        if (repo.description && repo.description.length > 0) {
+        if (repo.description.length > 0) {
           Text(repo.description)
             .fontSize(11)
             .fontColor($r('sys.color.font_secondary'))
@@ -98,13 +94,10 @@ export struct RepoList {
             .width('100%')
         }
         Row() {
-          if (repo.language && repo.language.length > 0) {
-            Text(repo.language).fontSize(10).fontColor($r('sys.color.interactive_active')).margin({ right: 12 })
-          }
-          Text(`★ ${repo.stargazers_count}`).fontSize(10).fontColor($r('sys.color.font_secondary')).margin({ right: 12 })
-          Text(`⑂ ${repo.forks_count}`).fontSize(10).fontColor($r('sys.color.font_secondary'))
+          Text(`★ ${repo.starCount}`).fontSize(10).fontColor($r('sys.color.font_secondary')).margin({ right: 12 })
+          Text(`⑂ ${repo.forkCount}`).fontSize(10).fontColor($r('sys.color.font_secondary'))
           Blank()
-          Text(repo.default_branch).fontSize(10).fontColor($r('sys.color.font_secondary'))
+          Text(repo.defaultBranch).fontSize(10).fontColor($r('sys.color.font_secondary'))
         }
         .width('100%')
         .margin({ top: 6 })

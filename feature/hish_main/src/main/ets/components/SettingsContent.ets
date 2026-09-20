@@ -66,15 +66,6 @@ export default struct SettingsContent {
   @Watch('saveVncPort') @StorageProp(appOption.vncPort) vncPort: number = 5900
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
-  // AI 工作台配置
-  @StorageLink(appOption.atomgitToken) atomgitToken: string = ''
-  @StorageLink(appOption.llmApiBase) llmApiBase: string = ''
-  @StorageLink(appOption.llmApiKey) llmApiKey: string = ''
-  @StorageLink(appOption.llmModel) llmModel: string = 'deepseek-chat'
-  @State tokenInput: string = ''
-  @State llmBaseInput: string = ''
-  @State llmKeyInput: string = ''
-  @State llmModelInput: string = ''
   // 华为云 CodeArts（AK/SK 认证）
   @StorageLink(appOption.hwAk) hwAk: string = ''
   @StorageLink(appOption.hwSk) hwSk: string = ''
@@ -550,77 +541,6 @@ export default struct SettingsContent {
               const value: boolean = !this.displayStatusBar;
               AppStorage.setOrCreate(appOption.displayStatusBar, value)
               this.showDisplayStatusBarToast(value)
-            })
-          }
-          .attributeModifier(this.blockStyle)
-
-          BlockTitle({ content: 'AI 工作台（CodeArts）' })
-          Column() {
-            SettingItem({
-              title: 'AtomGit Token',
-              subTitle: 'CodeArts 第三方授权的 AtomGit Access Token',
-              content: () => {
-                TextInput({ text: this.atomgitToken, placeholder: '粘贴 Token' })
-                  .fontSize(12)
-                  .width('60%')
-                  .type(InputType.Password)
-                  .onChange((val: string) => {
-                    this.tokenInput = val
-                  })
-                  .onSubmit(() => {
-                    this.atomgitToken = this.tokenInput
-                    savePreference(appOption.atomgitToken, this.tokenInput, this.getUIContext())
-                  })
-              }
-            })
-            SettingItem({
-              title: 'LLM API 端点',
-              subTitle: 'OpenAI 兼容（如 https://api.deepseek.com/v1）',
-              content: () => {
-                TextInput({ text: this.llmApiBase, placeholder: 'https://...' })
-                  .fontSize(12)
-                  .width('60%')
-                  .onChange((val: string) => {
-                    this.llmBaseInput = val
-                  })
-                  .onSubmit(() => {
-                    this.llmApiBase = this.llmBaseInput
-                    savePreference(appOption.llmApiBase, this.llmBaseInput, this.getUIContext())
-                  })
-              }
-            })
-            SettingItem({
-              title: 'LLM API Key',
-              subTitle: 'AI 模型密钥',
-              content: () => {
-                TextInput({ text: this.llmApiKey, placeholder: 'sk-...' })
-                  .fontSize(12)
-                  .width('60%')
-                  .type(InputType.Password)
-                  .onChange((val: string) => {
-                    this.llmKeyInput = val
-                  })
-                  .onSubmit(() => {
-                    this.llmApiKey = this.llmKeyInput
-                    savePreference(appOption.llmApiKey, this.llmKeyInput, this.getUIContext())
-                  })
-              }
-            })
-            SettingItem({
-              title: 'LLM 模型',
-              subTitle: '模型名称',
-              content: () => {
-                TextInput({ text: this.llmModel, placeholder: 'deepseek-chat' })
-                  .fontSize(12)
-                  .width('60%')
-                  .onChange((val: string) => {
-                    this.llmModelInput = val
-                  })
-                  .onSubmit(() => {
-                    this.llmModel = this.llmModelInput
-                    savePreference(appOption.llmModel, this.llmModelInput, this.getUIContext())
-                  })
-              }
             })
           }
           .attributeModifier(this.blockStyle)

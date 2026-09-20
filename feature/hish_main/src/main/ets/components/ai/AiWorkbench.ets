@@ -1,8 +1,6 @@
-import { atomGitClient } from '../../lib/atomgit/AtomGitClient';
-import { atomGitApi } from '../../lib/atomgit/AtomGitApi';
-import { AtomGitUser, AtomGitRepo } from '../../lib/atomgit/types';
-import { iamClient } from '../../lib/huaweicloud/IamClient';
+import { iamClient, IamAuthResult } from '../../lib/huaweicloud/IamClient';
 import { codeArtsClient } from '../../lib/huaweicloud/CodeArtsClient';
+import { CodeArtsRepository } from '../../lib/huaweicloud/CodeArtsApi';
 import appOption from '../../model/appOption';
 import RepoList from './RepoList';
 import PipelineList from './PipelineList';
@@ -10,64 +8,51 @@ import PrList from './PrList';
 import AiChat from './AiChat';
 
 /**
- * AI 工作台主容器
+ * AI 工作台主容器 —— 纯 CodeArts 架构
  * 顶部用户信息 + Tab 导航（仓库/流水线/代码检视/AI对话）
- * Token 未配置时显示引导
+ * AK/SK 未配置时显示引导
  */
 @Component
 export struct AiWorkbench {
-  @StorageLink(appOption.atomgitToken) token: string = ''
   @StorageLink(appOption.hwAk) hwAk: string = ''
   @StorageLink(appOption.hwSk) hwSk: string = ''
   @StorageLink(appOption.hwRegion) hwRegion: string = 'cn-north-4'
   @StorageLink(appOption.codeartsProjectId) codeartsProjectId: string = ''
-  @State user: AtomGitUser | null = null
+  @State authResult: IamAuthResult | null = null
   @State loading: boolean = false
   @State errorMsg: string = ''
   @State currentTabIndex: number = 0
-  @State selectedRepo: AtomGitRepo | null = null
-  @State codeArtsAuthed: boolean = false
+  @State selectedRepo: CodeArtsRepository | null = null
 
   aboutToAppear(): void {
     this.initClient()
   }
 
   private initClient(): void {
-    // 初始化 AtomGit 客户端
-    if (this.token.length > 0) {
-      atomGitClient.setToken(this.token)
-      this.loadUser()
-    }
-    // 初始化华为云 CodeArts 客户端
     if (this.hwAk.length > 0 && this.hwSk.length > 0) {
       iamClient.setCredentials(this.hwAk, this.hwSk, this.hwRegion)
       codeArtsClient.setRegion(this.hwRegion)
       codeArtsClient.setProjectId(this.codeartsProjectId)
-      this.checkCodeArtsAuth()
+      this.checkAuth()
     }
   }
 
-  private async checkCodeArtsAuth(): Promise<void> {
-    const auth = await iamClient.getToken()
-    this.codeArtsAuthed = auth !== null
-  }
-
-  private async loadUser(): Promise<void> {
+  private async checkAuth(): Promise<void> {
     this.loading = true
     this.errorMsg = ''
-    const resp = await atomGitApi.getCurrentUser()
+    const auth = await iamClient.getToken()
     this.loading = false
-    if (resp.ok && resp.data) {
-      this.user = resp.data
+    if (auth) {
+      this.authResult = auth
     } else {
-      this.errorMsg = resp.message || `获取用户失败 (${resp.statusCode})`
+      this.errorMsg = 'IAM 认证失败，请检查 AK/SK'
     }
   }
 
   build() {
     Column() {
-      if (this.token.length === 0) {
-        this.buildNoTokenGuide()
+      if (this.hwAk.length === 0 || this.hwSk.length === 0) {
+        this.buildNoAuthGuide()
       } else {
         this.buildHeader()
         this.buildTabs()
@@ -79,17 +64,17 @@ export struct AiWorkbench {
   }
 
   @Builder
-  buildNoTokenGuide() {
+  buildNoAuthGuide() {
     Column() {
       SymbolGlyph($r('sys.symbol.lock'))
         .fontSize(48)
         .fontColor([$r('sys.color.font_secondary')])
         .margin({ bottom: 16 })
-      Text('未配置 AtomGit Token')
+      Text('未配置华为云 AK/SK')
         .fontSize(18)
         .fontColor($r('sys.color.font_primary'))
         .margin({ bottom: 8 })
-      Text('请在设置页填入 CodeArts 授权的 AtomGit Access Token，以启用 AI 工作台')
+      Text('请在设置页填入华为云 Access Key 和 Secret Key\n以启用 CodeArts AI 工作台')
         .fontSize(13)
         .fontColor($r('sys.color.font_secondary'))
         .textAlign(TextAlign.Center)
@@ -105,42 +90,42 @@ export struct AiWorkbench {
     Row() {
       if (this.loading) {
         LoadingProgress().width(28).height(28)
-      } else if (this.user) {
-        Image(this.user.avatar_url)
-          .width(32)
-          .height(32)
-          .borderRadius(16)
+      } else if (this.authResult) {
+        // CodeArts 认证成功
+        SymbolGlyph($r('sys.symbol.checkmark_shield_fill'))
+          .fontSize(28)
+          .fontColor([$r('sys.color.success')])
           .margin({ right: 10 })
         Column() {
-          Text(this.user.name || this.user.login)
+          Text(this.authResult.domainName)
             .fontSize(14)
             .fontColor($r('sys.color.font_primary'))
             .maxLines(1)
-          Text('@' + this.user.login)
+          Text(`CodeArts · ${this.hwRegion}`)
             .fontSize(11)
             .fontColor($r('sys.color.font_secondary'))
             .maxLines(1)
         }
         .alignItems(HorizontalAlign.Start)
         .layoutWeight(1)
-        // CodeArts 认证状态标识
-        if (this.codeArtsAuthed) {
-          Text('CodeArts ✓')
+        // 项目 ID 状态
+        if (this.codeartsProjectId.length > 0) {
+          Text('项目已配置')
             .fontSize(10)
             .fontColor($r('sys.color.font_on_primary'))
             .backgroundColor($r('sys.color.success'))
             .borderRadius(4)
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
-        } else if (this.hwAk.length > 0) {
-          Text('CodeArts ✗')
+        } else {
+          Text('未配置项目ID')
             .fontSize(10)
             .fontColor($r('sys.color.font_on_primary'))
-            .backgroundColor($r('sys.color.error'))
+            .backgroundColor($r('sys.color.warning'))
             .borderRadius(4)
             .padding({ left: 6, right: 6, top: 2, bottom: 2 })
         }
       } else {
-        Text(this.errorMsg || '未登录')
+        Text(this.errorMsg || '认证中...')
           .fontSize(12)
           .fontColor($r('sys.color.font_secondary'))
           .layoutWeight(1)
@@ -157,21 +142,20 @@ export struct AiWorkbench {
     Tabs({ index: this.currentTabIndex }) {
       TabContent() {
         if (this.selectedRepo) {
-          // 选中仓库后，其他 Tab 基于该仓库
           Column() {
-            Text(this.selectedRepo.full_name)
+            Text(this.selectedRepo.name)
               .fontSize(13)
               .fontColor($r('sys.color.font_secondary'))
               .padding(8)
             RepoList({
-              onRepoSelected: (repo: AtomGitRepo) => {
+              onRepoSelected: (repo: CodeArtsRepository) => {
                 this.selectedRepo = repo
               }
             })
           }
         } else {
           RepoList({
-            onRepoSelected: (repo: AtomGitRepo) => {
+            onRepoSelected: (repo: CodeArtsRepository) => {
               this.selectedRepo = repo
             }
           })
@@ -180,17 +164,17 @@ export struct AiWorkbench {
       .tabBar('仓库')
 
       TabContent() {
-        PipelineList({ repo: this.selectedRepo })
+        PipelineList()
       }
       .tabBar('流水线')
 
       TabContent() {
-        PrList({ repo: this.selectedRepo })
+        PrList()
       }
       .tabBar('代码检视')
 
       TabContent() {
-        AiChat({ repo: this.selectedRepo })
+        AiChat()
       }
       .tabBar('AI 对话')
     }

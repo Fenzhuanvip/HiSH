@@ -1,165 +1,125 @@
-import { atomGitApi } from '../../lib/atomgit/AtomGitApi';
-import { AtomGitRepo, AtomGitPR } from '../../lib/atomgit/types';
-import { codeArtsApi, CodeArtsCheckTask, CodeArtsSeverity } from '../../lib/huaweicloud/CodeArtsApi';
-import { iamClient } from '../../lib/huaweicloud/IamClient';
-import { codeArtsClient } from '../../lib/huaweicloud/CodeArtsClient';
-
-type CheckView = 'codearts' | 'prs';
+import { codeArtsApi, CodeArtsCheckTask, CodeArtsCheckIssue, CodeArtsSeverity } from '../../lib/huaweicloud/CodeArtsApi';
 
 /**
- * 代码检视 Tab —— 双视图
- * 1. CodeArts 代码检查（CodeCheck 任务 + 问题统计）
- * 2. AtomGit PR 列表（代码审查）
+ * 代码检视 Tab —— 纯 CodeArts CodeCheck
+ * 功能：列出检查任务 / 触发检查 / 查看问题列表
  */
 @Component
 export struct PrList {
-  @Prop repo: AtomGitRepo | null = null
-  @State view: CheckView = 'codearts'
-  @State codeArtsAvailable: boolean = false
-  // CodeArts 检查
-  @State checkTasks: CodeArtsCheckTask[] = []
-  @State checkLoading: boolean = false
-  @State checkError: string = ''
-  // PR 列表
-  @State prs: AtomGitPR[] = []
-  @State prLoading: boolean = false
-  @State prError: string = ''
-  @State stateFilter: string = 'open'
+  @State tasks: CodeArtsCheckTask[] = []
+  @State loading: boolean = false
+  @State errorMsg: string = ''
+  @State triggering: boolean = false
+  @State triggerTaskId: string = ''
+  // 选中的检查任务 → 进入问题列表视图
+  @State selectedTask: CodeArtsCheckTask | null = null
+  @State issues: CodeArtsCheckIssue[] = []
+  @State issuesLoading: boolean = false
 
   aboutToAppear(): void {
-    this.detectView()
-    this.load()
+    this.loadTasks()
   }
 
-  aboutToReuse(): void {
-    this.detectView()
-    this.load()
-  }
-
-  private detectView(): void {
-    this.codeArtsAvailable = iamClient.isConfigured() && codeArtsClient.getProjectId().length > 0
-    if (!this.codeArtsAvailable) {
-      this.view = 'prs'
-    }
-  }
-
-  private async load(): Promise<void> {
-    if (this.view === 'codearts') {
-      await this.loadCheckTasks()
-    } else {
-      await this.loadPRs()
-    }
-  }
-
-  // ==================== CodeArts 代码检查 ====================
-  private async loadCheckTasks(): Promise<void> {
-    this.checkLoading = true
-    this.checkError = ''
+  // ==================== 检查任务列表 ====================
+  private async loadTasks(): Promise<void> {
+    this.loading = true
+    this.errorMsg = ''
     const resp = await codeArtsApi.listCheckTasks()
-    this.checkLoading = false
+    this.loading = false
     if (resp.ok && resp.data) {
-      this.checkTasks = resp.data
+      this.tasks = resp.data
     } else {
-      this.checkError = resp.message || `CodeArts 检查请求失败 (${resp.statusCode})`
-      this.checkTasks = []
+      this.errorMsg = resp.message || `CodeArts 检查请求失败 (${resp.statusCode})`
     }
   }
 
-  // ==================== AtomGit PR ====================
-  private async loadPRs(): Promise<void> {
-    if (!this.repo) {
-      this.prError = '请先在「仓库」Tab 选择一个仓库'
-      return
-    }
-    const parts = this.repo.full_name.split('/')
-    if (parts.length < 2) return
-    this.prLoading = true
-    this.prError = ''
-    const resp = await atomGitApi.listPRs(parts[0], parts[1], this.stateFilter)
-    this.prLoading = false
-    if (resp.ok && resp.data) {
-      this.prs = resp.data
+  /** 触发代码检查 */
+  private async triggerCheck(task: CodeArtsCheckTask): Promise<void> {
+    this.triggering = true
+    this.triggerTaskId = task.id
+    const resp = await codeArtsApi.startCheckTask(task.id)
+    this.triggering = false
+    this.triggerTaskId = ''
+    if (resp.ok) {
+      // 刷新列表
+      await this.loadTasks()
     } else {
-      this.prError = resp.message || `加载失败 (${resp.statusCode})`
+      this.errorMsg = resp.message || `触发失败 (${resp.statusCode})`
+    }
+  }
+
+  // ==================== 问题列表 ====================
+  private async loadIssues(taskId: string): Promise<void> {
+    this.issuesLoading = true
+    const resp = await codeArtsApi.listCheckIssues(taskId)
+    this.issuesLoading = false
+    if (resp.ok && resp.data) {
+      this.issues = resp.data
     }
   }
 
   build() {
     Column() {
-      this.buildViewSwitcher()
-      if (this.view === 'codearts') {
-        this.buildCheckView()
+      if (this.selectedTask) {
+        // 第二层：问题列表
+        this.buildIssueView()
       } else {
-        this.buildPrView()
+        // 第一层：检查任务列表
+        this.buildTaskList()
       }
     }
     .width('100%')
     .height('100%')
   }
 
+  // ==================== 第一层：检查任务列表 ====================
   @Builder
-  buildViewSwitcher() {
-    Row() {
-      Button('CodeArts 检查')
-        .fontSize(10)
-        .type(this.view === 'codearts' ? ButtonType.Capsule : ButtonType.Normal)
-        .enabled(this.codeArtsAvailable)
-        .margin({ right: 6 })
-        .onClick(() => { this.view = 'codearts'; this.load() })
-      Button('PR 审查')
-        .fontSize(10)
-        .type(this.view === 'prs' ? ButtonType.Capsule : ButtonType.Normal)
-        .onClick(() => { this.view = 'prs'; this.load() })
-    }
-    .width('100%')
-    .height(32)
-    .padding({ left: 12, right: 12 })
-    .backgroundColor($r('sys.color.comp_background_tertiary'))
-  }
-
-  // ==================== CodeArts 检查视图 ====================
-  @Builder
-  buildCheckView() {
-    if (this.checkLoading) {
-      Column() {
-        LoadingProgress().width(32).height(32)
-        Text('加载代码检查...').fontSize(12).fontColor($r('sys.color.font_secondary')).margin({ top: 8 })
-      }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
-    } else if (this.checkError.length > 0) {
-      Column() {
-        Text(this.checkError).fontSize(12).fontColor($r('sys.color.font_secondary')).textAlign(TextAlign.Center)
-          .margin({ left: 16, right: 16 })
-        Button('重试').margin({ top: 12 }).onClick(() => this.loadCheckTasks())
-      }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
-    } else if (this.checkTasks.length === 0) {
-      Column() {
-        Text('CodeArts 项目下暂无代码检查任务').fontSize(12).fontColor($r('sys.color.font_secondary'))
-      }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
-    } else {
-      List({ space: 8 }) {
-        ForEach(this.checkTasks, (task: CodeArtsCheckTask) => {
-          ListItem() {
-            this.buildCheckItem(task)
-          }
-        }, (task: CodeArtsCheckTask) => task.id)
+  buildTaskList() {
+    Column() {
+      Row() {
+        Text('代码检查任务').fontSize(14).fontColor($r('sys.color.font_primary')).layoutWeight(1)
+        Text(`共 ${this.tasks.length} 个`).fontSize(10).fontColor($r('sys.color.font_secondary'))
       }
-      .width('100%')
-      .layoutWeight(1)
-      .padding({ left: 12, right: 12, top: 8, bottom: 8 })
+      .width('100%').height(36).padding({ left: 12, right: 12 })
+      .backgroundColor($r('sys.color.comp_background_tertiary'))
+
+      if (this.loading) {
+        Column() {
+          LoadingProgress().width(32).height(32)
+          Text('加载检查任务...').fontSize(12).fontColor($r('sys.color.font_secondary')).margin({ top: 8 })
+        }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
+      } else if (this.errorMsg.length > 0) {
+        Column() {
+          Text(this.errorMsg).fontSize(12).fontColor($r('sys.color.font_secondary')).textAlign(TextAlign.Center)
+            .margin({ left: 16, right: 16 })
+          Button('重试').margin({ top: 12 }).onClick(() => this.loadTasks())
+        }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
+      } else if (this.tasks.length === 0) {
+        Column() {
+          Text('CodeArts 项目下暂无代码检查任务').fontSize(12).fontColor($r('sys.color.font_secondary'))
+        }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
+      } else {
+        List({ space: 8 }) {
+          ForEach(this.tasks, (task: CodeArtsCheckTask) => {
+            ListItem() {
+              this.buildTaskItem(task)
+            }
+          }, (task: CodeArtsCheckTask) => task.id)
+        }
+        .width('100%').layoutWeight(1).padding({ left: 12, right: 12, top: 8, bottom: 8 })
+      }
     }
+    .width('100%').height('100%')
   }
 
   @Builder
-  buildCheckItem(task: CodeArtsCheckTask) {
+  buildTaskItem(task: CodeArtsCheckTask) {
     Row() {
-      this.buildCheckStatusIcon(task.status)
+      this.buildStatusIcon(task.status)
       Column() {
         Text(task.name)
-          .fontSize(13)
-          .fontColor($r('sys.color.font_primary'))
-          .maxLines(1)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .width('100%')
+          .fontSize(13).fontColor($r('sys.color.font_primary'))
+          .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
         Row() {
           if (task.language.length > 0) {
             Text(task.language).fontSize(10).fontColor($r('sys.color.interactive_active')).margin({ right: 8 })
@@ -169,37 +129,133 @@ export struct PrList {
             task.issueCount > 0 ? $r('sys.color.error') : $r('sys.color.font_secondary')
           )
           Blank()
-          // 严重等级分布
           if (task.severity) {
             this.buildSeverityBar(task.severity)
           }
-        }
-        .width('100%')
-        .margin({ top: 4 })
+        }.width('100%').margin({ top: 4 })
       }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
-      .margin({ left: 10 })
+      .alignItems(HorizontalAlign.Start).layoutWeight(1).margin({ left: 10 })
+      // 触发检查按钮
+      Button({ type: ButtonType.Circle }) {
+        if (this.triggering && this.triggerTaskId === task.id) {
+          LoadingProgress().width(16).height(16).color($r('sys.color.font_on_primary'))
+        } else {
+          SymbolGlyph($r('sys.symbol.play_fill')).fontSize(16).fontColor([$r('sys.color.font_on_primary')])
+        }
+      }
+      .width(32).height(32).margin({ left: 8 })
+      .enabled(!this.triggering)
+      .onClick(() => this.triggerCheck(task))
     }
-    .width('100%')
-    .padding(10)
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(8)
+    .width('100%').padding(10)
+    .backgroundColor($r('sys.color.comp_background_primary')).borderRadius(8)
+    .onClick(() => {
+      this.selectedTask = task
+      this.loadIssues(task.id)
+    })
+  }
+
+  // ==================== 第二层：问题列表 ====================
+  @Builder
+  buildIssueView() {
+    Column() {
+      // 返回栏
+      Row() {
+        Button({ type: ButtonType.Normal }) {
+          SymbolGlyph($r('sys.symbol.chevron_left')).fontSize(16)
+        }
+        .width(32).height(32)
+        .onClick(() => { this.selectedTask = null; this.issues = [] })
+        Text(this.selectedTask!.name).fontSize(14).fontColor($r('sys.color.font_primary'))
+          .layoutWeight(1).margin({ left: 4 })
+        Text(`${this.issues.length} 问题`).fontSize(10).fontColor($r('sys.color.font_secondary'))
+      }
+      .width('100%').height(40).padding({ left: 8, right: 12 })
+      .backgroundColor($r('sys.color.comp_background_tertiary'))
+
+      if (this.issuesLoading) {
+        Column() {
+          LoadingProgress().width(32).height(32)
+        }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
+      } else if (this.issues.length === 0) {
+        Column() {
+          SymbolGlyph($r('sys.symbol.checkmark_seal_fill')).fontSize(40)
+            .fontColor([$r('sys.color.success')]).margin({ bottom: 8 })
+          Text('无问题').fontSize(13).fontColor($r('sys.color.font_secondary'))
+        }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
+      } else {
+        List({ space: 6 }) {
+          ForEach(this.issues, (issue: CodeArtsCheckIssue) => {
+            ListItem() {
+              this.buildIssueItem(issue)
+            }
+          }, (issue: CodeArtsCheckIssue) => issue.id)
+        }
+        .width('100%').layoutWeight(1).padding({ left: 12, right: 12, top: 8, bottom: 8 })
+      }
+    }
+    .width('100%').height('100%')
   }
 
   @Builder
-  buildCheckStatusIcon(status: string) {
-    if (status === 'finished' || status === 'success' || status === 'completed') {
+  buildIssueItem(issue: CodeArtsCheckIssue) {
+    Row() {
+      this.buildSeverityIcon(issue.severity)
+      Column() {
+        Text(issue.message)
+          .fontSize(12).fontColor($r('sys.color.font_primary'))
+          .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis }).width('100%')
+        Row() {
+          Text(issue.filePath).fontSize(10).fontColor($r('sys.color.interactive_active'))
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
+          Text(`:${issue.line}`).fontSize(10).fontColor($r('sys.color.font_secondary')).margin({ left: 4 })
+          Text(`  [${issue.rule}]`).fontSize(9).fontColor($r('sys.color.font_secondary')).margin({ left: 8 })
+        }.width('100%').margin({ top: 4 })
+        if (issue.suggestion.length > 0) {
+          Text(`建议: ${issue.suggestion}`)
+            .fontSize(10).fontColor($r('sys.color.font_secondary'))
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
+            .width('100%').margin({ top: 2 })
+        }
+      }
+      .alignItems(HorizontalAlign.Start).layoutWeight(1).margin({ left: 8 })
+    }
+    .width('100%').padding(8)
+    .backgroundColor($r('sys.color.comp_background_primary')).borderRadius(6)
+  }
+
+  // ==================== 通用 ====================
+  @Builder
+  buildStatusIcon(status: string) {
+    if (status === 'finished' || status === 'success' || status === 'completed' || status === 'FINISHED') {
       SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
         .fontSize(18).fontColor([$r('sys.color.success')])
-    } else if (status === 'running' || status === 'in_progress' || status === 'pending') {
+    } else if (status === 'running' || status === 'in_progress' || status === 'RUNNING') {
       LoadingProgress().width(18).height(18)
-    } else if (status === 'failed' || status === 'error') {
+    } else if (status === 'failed' || status === 'error' || status === 'FAILED') {
       SymbolGlyph($r('sys.symbol.xmark_circle_fill'))
         .fontSize(18).fontColor([$r('sys.color.error')])
     } else {
       SymbolGlyph($r('sys.symbol.circle'))
         .fontSize(18).fontColor([$r('sys.color.font_secondary')])
+    }
+  }
+
+  @Builder
+  buildSeverityIcon(severity: string) {
+    if (severity === 'fatal' || severity === 'blocker') {
+      SymbolGlyph($r('sys.symbol.exclamationmark_octagon_fill'))
+        .fontSize(16).fontColor([$r('sys.color.error')])
+    } else if (severity === 'major' || severity === 'critical') {
+      SymbolGlyph($r('sys.symbol.exclamationmark_triangle_fill'))
+        .fontSize(16).fontColor([$r('sys.color.warning')])
+    } else if (severity === 'minor') {
+      SymbolGlyph($r('sys.symbol.info_circle_fill'))
+        .fontSize(16).fontColor([$r('sys.color.interactive_active')])
+    } else {
+      SymbolGlyph($r('sys.symbol.lightbulb_fill'))
+        .fontSize(16).fontColor([$r('sys.color.font_secondary')])
     }
   }
 
@@ -222,113 +278,5 @@ export struct PrList {
           .padding({ left: 3, right: 3, top: 1, bottom: 1 }).margin({ right: 3 })
       }
     }
-  }
-
-  // ==================== PR 视图 ====================
-  @Builder
-  buildPrView() {
-    Column() {
-      if (this.repo) {
-        this.buildFilterBar()
-      }
-      if (!this.repo) {
-        Column() {
-          Text('请先在「仓库」Tab 选择一个仓库').fontSize(12).fontColor($r('sys.color.font_secondary'))
-        }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
-      } else if (this.prLoading) {
-        Column() {
-          LoadingProgress().width(32).height(32)
-          Text('加载 PR...').fontSize(12).fontColor($r('sys.color.font_secondary')).margin({ top: 8 })
-        }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
-      } else if (this.prError.length > 0) {
-        Column() {
-          Text(this.prError).fontSize(12).fontColor($r('sys.color.font_secondary')).textAlign(TextAlign.Center)
-          Button('重试').margin({ top: 12 }).onClick(() => this.loadPRs())
-        }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
-      } else if (this.prs.length === 0) {
-        Column() {
-          Text(`无${this.stateFilter === 'open' ? '开启' : '关闭'}的 PR`).fontSize(12).fontColor($r('sys.color.font_secondary'))
-        }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
-      } else {
-        List({ space: 8 }) {
-          ForEach(this.prs, (pr: AtomGitPR) => {
-            ListItem() {
-              this.buildPrItem(pr)
-            }
-          }, (pr: AtomGitPR) => String(pr.number))
-        }
-        .width('100%')
-        .layoutWeight(1)
-        .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-      }
-    }
-    .width('100%')
-    .layoutWeight(1)
-  }
-
-  @Builder
-  buildFilterBar() {
-    Row() {
-      Button('开启')
-        .fontSize(11)
-        .type(this.stateFilter === 'open' ? ButtonType.Capsule : ButtonType.Normal)
-        .margin({ right: 6 })
-        .onClick(() => { this.stateFilter = 'open'; this.loadPRs() })
-      Button('关闭')
-        .fontSize(11)
-        .type(this.stateFilter === 'closed' ? ButtonType.Capsule : ButtonType.Normal)
-        .onClick(() => { this.stateFilter = 'closed'; this.loadPRs() })
-      Blank()
-      Text(`共 ${this.prs.length} 个`).fontSize(10).fontColor($r('sys.color.font_secondary'))
-    }
-    .width('100%')
-    .padding({ left: 12, right: 12, top: 6, bottom: 6 })
-  }
-
-  @Builder
-  buildPrItem(pr: AtomGitPR) {
-    Row() {
-      if (pr.merged) {
-        SymbolGlyph($r('sys.symbol.checkmark_seal_fill')).fontSize(16).fontColor([$r('sys.color.interactive_active')])
-      } else if (pr.state === 'open') {
-        SymbolGlyph($r('sys.symbol.plus_circle')).fontSize(16).fontColor([$r('sys.color.success')])
-      } else {
-        SymbolGlyph($r('sys.symbol.minus_circle')).fontSize(16).fontColor([$r('sys.color.font_secondary')])
-      }
-      Column() {
-        Text(`#${pr.number}  ${pr.title}`)
-          .fontSize(13)
-          .fontColor($r('sys.color.font_primary'))
-          .maxLines(2)
-          .textOverflow({ overflow: TextOverflow.Ellipsis })
-          .width('100%')
-          .margin({ left: 8 })
-        Row() {
-          Text(`${pr.head.ref} → ${pr.base.ref}`)
-            .fontSize(10)
-            .fontColor($r('sys.color.font_secondary'))
-            .margin({ left: 8, right: 8 })
-          if (pr.changed_files) {
-            Text(`±${pr.changed_files}`).fontSize(10).fontColor($r('sys.color.font_secondary')).margin({ right: 8 })
-          }
-          if (pr.additions !== undefined && pr.deletions !== undefined) {
-            Text(`+${pr.additions} -${pr.deletions}`).fontSize(10)
-              .fontColor($r('sys.color.font_secondary'))
-          }
-          Blank()
-          if (pr.draft) {
-            Text('草稿').fontSize(10).fontColor($r('sys.color.font_secondary')).margin({ left: 4 })
-          }
-        }
-        .width('100%')
-        .margin({ top: 4 })
-      }
-      .alignItems(HorizontalAlign.Start)
-      .layoutWeight(1)
-    }
-    .width('100%')
-    .padding(10)
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(8)
   }
 }

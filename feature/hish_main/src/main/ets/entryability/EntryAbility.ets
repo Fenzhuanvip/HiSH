@@ -259,14 +259,6 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.rootFilesystems, rootFilesystems)
 
     // ===== AI 工作台配置 =====
-    const atomgitToken = await appPref.get(appOption.atomgitToken, '') as string;
-    AppStorage.setOrCreate(appOption.atomgitToken, atomgitToken);
-    const llmApiBase = await appPref.get(appOption.llmApiBase, '') as string;
-    AppStorage.setOrCreate(appOption.llmApiBase, llmApiBase);
-    const llmApiKey = await appPref.get(appOption.llmApiKey, '') as string;
-    AppStorage.setOrCreate(appOption.llmApiKey, llmApiKey);
-    const llmModel = await appPref.get(appOption.llmModel, 'deepseek-chat') as string;
-    AppStorage.setOrCreate(appOption.llmModel, llmModel);
     const aiWorkbenchVisible = await appPref.get(appOption.aiWorkbenchVisible, false) as boolean;
     AppStorage.setOrCreate(appOption.aiWorkbenchVisible, aiWorkbenchVisible);
 
