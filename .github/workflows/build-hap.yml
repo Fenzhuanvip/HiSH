@@ -86,7 +86,12 @@ jobs:
           df -h /tmp /opt
           sudo mkdir -p "$TOOL_HOME"
           sudo unzip -q /tmp/clt.zip -d /opt/
+          # 修复权限：sudo 解压后目录归 root，runner 用户无法访问
+          sudo chown -R "$(id -u):$(id -g)" /opt/command-line-tools
+          sudo chmod -R a+rX /opt/command-line-tools
           # zip 内部是 command-line-tools/ 目录，解压到 /opt/ 后即 /opt/command-line-tools
+          echo "=== CLT 顶层结构 ==="
+          ls -la "$TOOL_HOME"
           HVIGORW=$(find "$TOOL_HOME" -name hvigorw -type f | head -1)
           if [ -z "$HVIGORW" ]; then
             echo "未找到 hvigorw:"
@@ -119,7 +124,8 @@ jobs:
           set -e
           chmod +x "$TOOL_HOME/hvigor/bin/hvigorw" 2>/dev/null || true
           node "$TOOL_HOME/hvigor/bin/hvigorw.js" assembleHap \
-            --mode module -p product=default -p debuggable=false --no-daemon
+            --mode module -p product=default -p debuggable=false --no-daemon \
+            2>&1 | tee build-output.txt
 
       - name: Collect HAP
         if: success() || failure()
@@ -127,6 +133,8 @@ jobs:
           mkdir -p artifacts
           find . -name "*.hap" -exec cp {} artifacts/ \; 2>/dev/null || true
           ls -lh artifacts/ || true
+          # 收集 hvigor 构建日志
+          find . -path "*/.hvigor/outputs/build-logs/*.log" -exec cp {} artifacts/ \; 2>/dev/null || true
 
       - name: Upload HAP artifact
         if: success()
@@ -142,7 +150,10 @@ jobs:
         with:
           name: build-logs
           path: |
-            **/build-output.txt
+            build-output.txt
+            artifacts/*.log
             hvigor/hvigor-config.json5
+            oh-package.json5
+            build-profile.json5
           retention-days: 7
           if-no-files-found: ignore
