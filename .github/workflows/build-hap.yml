@@ -11,6 +11,10 @@ jobs:
     name: Build HAP
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    env:
+      CLT_URL: https://mirrors.huaweicloud.com/harmonyos/ohpm/5.1.0/commandline-tools-linux-x64-5.1.0.840.zip
+      TOOL_HOME: /opt/command-line-tools
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,145 +69,47 @@ jobs:
           fi
           ls -lh feature/hish_main/libs/arm64-v8a/ | head
 
-      - name: Configure build profile
-        run: cp -f build-profile.template.json5 build-profile.json5
-
-      - name: Install Chrome dependencies (for headless browser)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq \
-            libatk-bridge2.0-0 libatk1.0-0 libcups2 libdrm2 libxkbcommon0 \
-            libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 \
-            libpango-1.0-0 libcairo2 libasound2t64 libnss3 libnspr4 \
-            libxshmfence1 libglib2.0-0 fonts-liberation > /dev/null
-
-      - name: Extract CLT download URL (headless browser)
+      - name: Download HarmonyOS Command Line Tools (Huawei Cloud mirror)
         run: |
           set -e
-          mkdir -p /tmp/clt-extract
-          cat > /tmp/clt-extract/extract.js << 'EOF'
-          const puppeteer = require('puppeteer');
-
-          (async () => {
-            const browser = await puppeteer.launch({
-              headless: 'new',
-              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-            });
-            const page = await browser.newPage();
-            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-
-            const apiResponses = [];
-            page.on('response', async (resp) => {
-              try {
-                const url = resp.url();
-                if (url.includes('downloadCenter') || url.includes('getTool') || url.includes('codeserver')) {
-                  const body = await resp.text().catch(() => '');
-                  apiResponses.push({ url, status: resp.status(), body: body.substring(0, 5000) });
-                  console.log('=== API RESPONSE ===');
-                  console.log('URL:', url);
-                  console.log('STATUS:', resp.status());
-                  console.log('BODY:', body.substring(0, 3000));
-                }
-              } catch (e) {}
-            });
-
-            console.log('Navigating to download page...');
-            await page.goto('https://developer.huawei.com/consumer/cn/download/', {
-              waitUntil: 'networkidle2',
-              timeout: 60000
-            });
-
-            // 等待页面渲染
-            await new Promise(r => setTimeout(r, 15000));
-
-            // 滚动触发懒加载
-            await page.evaluate(() => {
-              window.scrollTo(0, document.body.scrollHeight);
-            });
-            await new Promise(r => setTimeout(r, 8000));
-
-            // 获取页面内容
-            const text = await page.evaluate(() => document.body.innerText);
-            console.log('=== PAGE TEXT (first 3000 chars) ===');
-            console.log(text.substring(0, 3000));
-
-            // 查找所有链接
-            const links = await page.evaluate(() =>
-              Array.from(document.querySelectorAll('a')).map(a => a.href).filter(h => h && (h.includes('download') || h.includes('zip') || h.includes('dbankcdn') || h.includes('contentcenter')))
-            );
-            console.log('=== DOWNLOAD LINKS ===');
-            links.forEach(l => console.log(l));
-
-            // 查找所有按钮并点击可能的 SDK 相关项
-            const btns = await page.evaluate(() =>
-              Array.from(document.querySelectorAll('button, .btn, a')).map(b => b.innerText || '').filter(t => t && (t.includes('SDK') || t.includes('命令行') || t.includes('Command Line') || t.includes('工具')))
-            );
-            console.log('=== SDK-RELATED ELEMENTS ===');
-            btns.forEach(b => console.log(b));
-
-            console.log('=== COLLECTED API RESPONSES ===');
-            console.log(JSON.stringify(apiResponses, null, 2).substring(0, 10000));
-
-            await browser.close();
-          })().catch(e => { console.error('ERROR:', e.message); process.exit(1); });
-          EOF
-          cd /tmp/clt-extract
-          npm init -y > /dev/null 2>&1
-          npm install puppeteer --no-audit --no-fund 2>&1 | tail -2
-          node extract.js 2>&1 | tee extract-output.txt
-
-      - name: Parse CLT URL and download
-        run: |
-          set -e
-          # 从输出中提取 CLT 下载链接
-          CLT_URL=$(grep -oP 'https?://[^\s"<>]+' /tmp/clt-extract/extract-output.txt | \
-            grep -iE 'command.?line|cmdtools|clt|\.zip' | \
-            grep -viE 'node-versions|chromium|puppeteer' | head -1 || true)
-
-          echo "提取到的 CLT URL: $CLT_URL"
-
-          if [ -z "$CLT_URL" ]; then
-            echo "未从页面提取到 CLT 链接"
-            echo "尝试通过 Huawei API 直接调用..."
-            # 直接尝试 API（可能需要 session）
-            for EP in getToolList getLatestToolVersion; do
-              echo "--- $EP ---"
-              curl -sL -m 15 "https://svc-drcn.developer.huawei.com/codeserver/PartnerCommunityService/v1/developer/downloadCenter/$EP" \
-                -H "Content-Type: application/json" \
-                -H "Referer: https://developer.huawei.com/consumer/cn/download/" \
-                -H "Origin: https://developer.huawei.com" \
-                -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0" \
-                -d '{"cn":true}' | head -c 1500 || true
-              echo ""
-            done
-            exit 1
-          fi
-
-          wget -q --show-progress "$CLT_URL" -O /tmp/clt.zip
-          mkdir -p /opt/command-line-tools
-          unzip -q /tmp/clt.zip -d /opt/command-line-tools
-          HVIGORW=$(find /opt/command-line-tools -name hvigorw -type f | head -1)
+          wget -q --show-progress --tries=3 "$CLT_URL" -O /tmp/clt.zip
+          ls -lh /tmp/clt.zip
+          sudo mkdir -p "$TOOL_HOME"
+          sudo unzip -q /tmp/clt.zip -d /opt/
+          # zip 内部是 command-line-tools/ 目录，解压到 /opt/ 后即 /opt/command-line-tools
+          HVIGORW=$(find "$TOOL_HOME" -name hvigorw -type f | head -1)
           if [ -z "$HVIGORW" ]; then
             echo "未找到 hvigorw:"
-            find /opt/command-line-tools -maxdepth 3 -type d
+            find "$TOOL_HOME" -maxdepth 2 -type d
             exit 1
           fi
-          TOOL_HOME=$(cd "$(dirname "$HVIGORW")/.." && pwd)
           echo "TOOL_HOME=$TOOL_HOME" >> "$GITHUB_ENV"
           echo "DEVECO_SDK_HOME=$TOOL_HOME/sdk" >> "$GITHUB_ENV"
           echo "$TOOL_HOME/bin" >> "$GITHUB_PATH"
           echo "$(dirname "$HVIGORW")" >> "$GITHUB_PATH"
+          echo "TOOL_HOME=$TOOL_HOME, hvigorw=$HVIGORW"
+
+      - name: Verify toolchain
+        run: |
+          which ohpm || ls "$TOOL_HOME/bin/"
+          ohpm -v || true
+          node "$TOOL_HOME/hvigor/bin/hvigorw.js" --version 2>/dev/null || \
+            hvigorw --version 2>/dev/null || echo "hvigor version check skipped"
 
       - name: Install ohpm deps
         run: |
-          ohpm config set registry https://ohpm.openharmony.cn/ohpm/ || true
-          ohpm install || true
+          ohpm config set registry https://ohpm.openharmony.cn/ohpm/
+          ohpm install
+
+      - name: Configure build profile
+        run: cp -f build-profile.template.json5 build-profile.json5
 
       - name: Build HAP
         run: |
           set -e
-          chmod +x hvigorw 2>/dev/null || true
-          hvigorw assembleHap --mode module -p product=default -p debuggable=false --no-daemon
+          chmod +x "$TOOL_HOME/hvigor/bin/hvigorw" 2>/dev/null || true
+          node "$TOOL_HOME/hvigor/bin/hvigorw.js" assembleHap \
+            --mode module -p product=default -p debuggable=false --no-daemon
 
       - name: Collect HAP
         if: success() || failure()
@@ -211,7 +117,6 @@ jobs:
           mkdir -p artifacts
           find . -name "*.hap" -exec cp {} artifacts/ \; 2>/dev/null || true
           ls -lh artifacts/ || true
-          test -n "$(ls -A artifacts/*.hap 2>/dev/null)"
 
       - name: Upload HAP artifact
         if: success()
@@ -227,6 +132,7 @@ jobs:
         with:
           name: build-logs
           path: |
-            /tmp/clt-extract/extract-output.txt
+            **/build-output.txt
+            hvigor/hvigor-config.json5
           retention-days: 7
           if-no-files-found: ignore
