@@ -110,6 +110,14 @@ jobs:
           ohpm -v || true
           node "$TOOL_HOME/hvigor/bin/hvigorw.js" --version 2>/dev/null || \
             hvigorw --version 2>/dev/null || echo "hvigor version check skipped"
+          echo "=== SDK 目录结构 ==="
+          ls -la "$TOOL_HOME/sdk/" 2>/dev/null || true
+          ls -la "$TOOL_HOME/sdk/default/" 2>/dev/null || true
+          ls -la "$TOOL_HOME/sdk/default/openharmony/" 2>/dev/null || true
+          echo "=== SDK 版本信息 ==="
+          find "$TOOL_HOME/sdk" -name "oh-uni-package.json" -exec cat {} \; 2>/dev/null || true
+          find "$TOOL_HOME/sdk" -name "api-version" -exec sh -c 'echo "$1:"; cat "$1"' _ {} \; 2>/dev/null || true
+          find "$TOOL_HOME/sdk" -name "version" -exec sh -c 'echo "$1:"; cat "$1"' _ {} \; 2>/dev/null || true
 
       - name: Install ohpm deps
         run: |
@@ -130,7 +138,7 @@ jobs:
 
       - name: Build HAP
         run: |
-          set -e
+          set -eo pipefail
           chmod +x "$TOOL_HOME/hvigor/bin/hvigorw" 2>/dev/null || true
           node "$TOOL_HOME/hvigor/bin/hvigorw.js" assembleHap \
             --mode module -p product=default -p debuggable=false --no-daemon \
