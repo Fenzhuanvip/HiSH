@@ -102,7 +102,7 @@ export struct AiWorkbench {
         this.selectedRepo = repo
         this.currentTabIndex = 1
       }})
-    } else if (this.currentTabIndex === 1 && this.selectedRepo) {
+    } else if (this.currentTabIndex >= 1 && this.selectedRepo) {
       // PR + Issue Tab
       this.buildRepoDetail()
     }
