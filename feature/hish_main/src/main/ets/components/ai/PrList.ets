@@ -1,4 +1,4 @@
-import { gitCodeApi, GitCodePull } from '../../lib/huaweicloud/GitCodeApi';
+import { gitCodeApi, GitCodePull, GitCodeLabel } from '../../lib/huaweicloud/GitCodeApi';
 
 /**
  * PR 列表 Tab —— GitCode（atomgit）Pull Requests
@@ -51,7 +51,7 @@ export struct PrList {
         }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
       } else if (this.pulls.length === 0) {
         Column() {
-          SymbolGlyph($r('sys.symbol.arrow.triangle.branch'))
+          SymbolGlyph($r('sys.symbol.checkmark_circle'))
             .fontSize(36).fontColor(['#94A3B8']).margin({ bottom: 12 })
           Text('暂无 Pull Request').fontSize(13).fontColor('#94A3B8')
         }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
@@ -112,7 +112,7 @@ export struct PrList {
         // 标签
         if (pr.labels && pr.labels.length > 0) {
           Row() {
-            ForEach(pr.labels.slice(0, 3), (label) => {
+            ForEach(pr.labels.slice(0, 3), (label: GitCodeLabel) => {
               Text(label.name).fontSize(9).fontColor('#FFFFFF')
                 .backgroundColor(`#${label.color}`)
                 .borderRadius(3)
