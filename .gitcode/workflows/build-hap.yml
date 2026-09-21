@@ -17,52 +17,29 @@ jobs:
         with:
           node-version: 22
 
-      # ===== 直接调用华为开发者 API 获取 CLT 下载链接 =====
-      - name: Get CLT download URL via API
+      - name: Install chromium + deps
         run: |
-          set -x
-          # 尝试多种 API URL 和方式
-          BASE="https://svc-drcn.developer.huawei.com/codeserver"
-          API="PartnerCommunityService/v1/developer/downloadCenter"
-          
-          for path in "getLatestToolVersion" "getToolList"; do
-            for method in POST GET; do
-              echo "=== 尝试 $method $BASE/$API/$path ==="
-              curl -s --max-time 15 -X $method "$BASE/$API/$path" \
-                -H "Content-Type: application/json" \
-                -H "User-Agent: Mozilla/5.0" \
-                -H "Referer: https://developer.huawei.com/consumer/cn/download/" \
-                -H "Origin: https://developer.huawei.com" \
-                -d '{"toolType":"commandLineTools","osType":"linux"}' \
-                -w "\nHTTP %{http_code}\n" 2>/dev/null | head -c 2000
-              echo ""
-            done
-          done
-          
-          # 也尝试不加 /codeserver
-          BASE2="https://svc-drcn.developer.huawei.com"
-          for path in "getLatestToolVersion" "getToolList"; do
-            echo "=== 尝试 POST $BASE2/$API/$path ==="
-            curl -s --max-time 15 -X POST "$BASE2/$API/$path" \
-              -H "Content-Type: application/json" \
-              -H "User-Agent: Mozilla/5.0" \
-              -H "Referer: https://developer.huawei.com/consumer/cn/download/" \
-              -d '{}' \
-              -w "\nHTTP %{http_code}\n" 2>/dev/null | head -c 2000
-            echo ""
-          done
-          
-          # 尝试 codeserversvc
-          BASE3="https://svc-drcn.developer.huawei.com/codeserversvc"
-          for path in "getLatestToolVersion" "getToolList"; do
-            echo "=== 尝试 POST $BASE3/$API/$path ==="
-            curl -s --max-time 15 -X POST "$BASE3/$API/$path" \
-              -H "Content-Type: application/json" \
-              -H "User-Agent: Mozilla/5.0" \
-              -d '{}' \
-              -w "\nHTTP %{http_code}\n" 2>/dev/null | head -c 2000
-            echo ""
-          done
+          sudo apt-get update
+          sudo apt-get install -y chromium-browser libatk-bridge2.0-0 libatk1.0-0 \
+            libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
+            libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64 libnss3 libnspr4 \
+            libxshmfence1 libglib2.0-0 fonts-liberation 2>/dev/null || true
+          which chromium chromium-browser 2>/dev/null || echo "chromium not found"
+
+      - name: Extract CLT download URL
+        run: |
+          npm install puppeteer-core
+          node extract-clt-url.js 2>&1 | tee puppeteer-output.txt
+          # 提取下载链接
+          grep -oP 'https?://[^\s"<>]+' puppeteer-output.txt | grep -iE '\.zip|\.tar|\.gz|contentcenter|dbankcdn|download' | head -1 > clt-url.txt || true
+          echo "CLT URL: $(cat clt-url.txt 2>/dev/null || echo '未找到')"
+
+      - name: Download CLT
+        run: |
+          CLT_URL=$(cat clt-url.txt)
+          if [ -z "$CLT_URL" ]; then echo "未找到链接"; exit 1; fi
+          wget -q --show-progress "$CLT_URL" -O /tmp/clt.zip
+          unzip -q /tmp/clt.zip -d /opt/clt
 
       - name: Install DevEco CLI
         run: npm install -g @deveco/deveco-cli@latest
@@ -71,7 +48,6 @@ jobs:
         run: |
           git clone --branch resources --depth 1 --single-branch https://atomgit.com/ff-518/HiSH.git /tmp/resources-repo || \
           git clone --branch resources --depth 1 --single-branch "https://x-access-token:${GITHUB_TOKEN}@atomgit.com/ff-518/HiSH.git" /tmp/resources-repo
-          ls -lh /tmp/resources-repo/resources/
           tar xzf /tmp/resources-repo/resources/libvncserver.tar.gz -C feature/hish_main/src/main/cpp/
           mkdir -p feature/hish_main/libs/
           unzip -q /tmp/resources-repo/resources/libs.zip -d feature/hish_main/libs/
@@ -87,13 +63,13 @@ jobs:
           export DEVECO_CLI_CLT_PATH=/opt/clt
           devecocli build --build-mode release
 
-      - name: Collect HAP
+      - name: Collect and Upload HAP
         run: |
           mkdir -p artifacts
           find . -name "*.hap" -exec cp {} artifacts/ \;
           ls -lh artifacts/
 
-      - name: Upload HAP
+      - name: Upload HAP artifact
         uses: upload-artifact
         with:
           name: hish-hap

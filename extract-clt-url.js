@@ -1,93 +1,94 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 
 (async () => {
+  // 查找系统 chromium
+  const { execSync } = require('child_process');
+  let chromePath;
+  for (const p of ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable']) {
+    try { if (fs.existsSync(p)) { chromePath = p; break; } } catch {}
+  }
+  if (!chromePath) {
+    // 尝试 which
+    try { chromePath = execSync('which chromium chromium-browser google-chrome 2>/dev/null | head -1').toString().trim(); } catch {}
+  }
+  console.log('Chrome 路径:', chromePath || '未找到');
+  if (!chromePath) { console.error('未找到 chromium，退出'); process.exit(1); }
+
   const browser = await puppeteer.launch({
+    executablePath: chromePath,
     headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--disable-software-rasterizer']
   });
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
   await page.setViewport({ width: 1920, height: 1080 });
 
   // 拦截所有网络请求
-  let apiCount = 0;
+  const allRequests = [];
   page.on('request', req => {
     const url = req.url();
-    if (url.includes('downloadCenter') || url.includes('getTool') || url.includes('getLatest') || url.includes('svc-drcn')) {
-      apiCount++;
-      console.log(`API CALL: ${req.method()} ${url}`);
+    if (!url.includes('.js') && !url.includes('.css') && !url.includes('.png') && !url.includes('.svg') && !url.includes('.woff') && !url.includes('.ico')) {
+      allRequests.push({ method: req.method(), url: url.substring(0, 200) });
+      if (url.includes('svc-drcn') || url.includes('downloadCenter') || url.includes('getTool') || url.includes('api')) {
+        console.log(`API: ${req.method()} ${url.substring(0, 200)}`);
+      }
     }
   });
   page.on('response', async resp => {
     const url = resp.url();
-    if (url.includes('downloadCenter') || url.includes('getTool') || url.includes('getLatest')) {
-      console.log(`API RESP: ${resp.status()} ${url}`);
+    if (url.includes('svc-drcn') || url.includes('downloadCenter') || url.includes('getTool') || url.includes('getLatest')) {
+      console.log(`RESP: ${resp.status()} ${url.substring(0, 150)}`);
       try {
         const text = await resp.text();
-        if (text.length < 2000) console.log(`  BODY: ${text}`);
-        else console.log(`  BODY (truncated): ${text.substring(0, 1000)}`);
+        console.log(`  BODY: ${text.substring(0, 1000)}`);
       } catch {}
     }
   });
 
-  console.log('正在加载华为开发者下载页面...');
+  console.log('正在加载页面...');
   try {
-    await page.goto('https://developer.huawei.com/consumer/cn/download/', {
-      waitUntil: 'networkidle2',
-      timeout: 30000
-    });
-  } catch (e) {
-    console.log('页面加载超时或错误: ' + e.message);
-  }
+    await page.goto('https://developer.huawei.com/consumer/cn/download/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  } catch (e) { console.log('加载错误:', e.message); }
 
-  // 等待更长时间
-  console.log('等待页面渲染...');
-  await new Promise(r => setTimeout(r, 15000));
+  console.log('等待 20 秒...');
+  await new Promise(r => setTimeout(r, 20000));
 
-  // 打印页面信息
   console.log('\n=== 页面信息 ===');
   console.log('URL:', page.url());
   console.log('Title:', await page.title());
-
-  // 打印 HTML 前缀
   const html = await page.content();
   console.log('HTML 长度:', html.length);
-  console.log('HTML 前500字符:', html.substring(0, 500));
 
-  // 打印页面文本
-  const pageText = await page.evaluate(() => document.body?.innerText || 'NO BODY');
-  console.log('\n=== 页面文本 ===');
+  const pageText = await page.evaluate(() => document.body?.innerText || 'EMPTY');
   console.log('文本长度:', pageText.length);
-  console.log(pageText.substring(0, 2000));
+  console.log('文本内容:', pageText.substring(0, 3000));
 
   // 查找所有链接
-  console.log('\n=== 所有链接 ===');
-  const links = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('a')).map(a => ({
-      text: a.textContent.trim().substring(0, 80),
-      href: a.href
-    })).filter(l => l.text || l.href);
-  });
-  console.log(`找到 ${links.length} 个链接`);
-  links.slice(0, 30).forEach(l => console.log(`  ${l.text} -> ${l.href}`));
+  const links = await page.evaluate(() => Array.from(document.querySelectorAll('a')).map(a => ({t: a.textContent.trim().substring(0, 60), h: a.href})).filter(l => l.t));
+  console.log(`\n链接数: ${links.length}`);
+  links.slice(0, 40).forEach(l => console.log(`  ${l.t} -> ${l.h.substring(0, 100)}`));
 
-  // 查找所有按钮
-  console.log('\n=== 所有按钮 ===');
-  const buttons = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll('button, [role="button"], .download-btn, [class*="download"]')).map(b => ({
-      tag: b.tagName,
-      text: b.textContent.trim().substring(0, 80),
-      class: b.className?.toString().substring(0, 80)
-    })).filter(b => b.text);
+  // 查找下载相关元素
+  const downloads = await page.evaluate(() => {
+    const results = [];
+    document.querySelectorAll('*').forEach(el => {
+      const t = el.textContent.trim();
+      if (t.length < 100 && (t.includes('Command Line') || t.includes('命令行') || t.includes('下载') || t.includes('Download'))) {
+        results.push({ tag: el.tagName, text: t.substring(0, 80) });
+      }
+    });
+    return results.slice(0, 20);
   });
-  console.log(`找到 ${buttons.length} 个按钮`);
-  buttons.slice(0, 20).forEach(b => console.log(`  [${b.tag}] ${b.text} (${b.class})`));
+  console.log('\n下载相关元素:');
+  downloads.forEach(d => console.log(`  [${d.tag}] ${d.text}`));
 
-  // 截图
-  await page.screenshot({ path: '/tmp/download-page.png', fullPage: true });
-  console.log('\n截图已保存到 /tmp/download-page.png');
-  console.log(`API 调用数: ${apiCount}`);
+  console.log(`\n总请求数: ${allRequests.length}`);
+  console.log('所有非静态请求:');
+  allRequests.forEach(r => console.log(`  ${r.method} ${r.url}`));
+
+  await page.screenshot({ path: '/tmp/page.png', fullPage: true });
+  console.log('截图已保存');
 
   await browser.close();
 })().catch(e => { console.error('错误:', e.message); process.exit(1); });
