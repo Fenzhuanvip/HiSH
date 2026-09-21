@@ -1,15 +1,16 @@
-import { codeArtsApi, CodeArtsRepository } from '../../lib/huaweicloud/CodeArtsApi';
+import { gitCodeApi, GitCodeRepo } from '../../lib/huaweicloud/GitCodeApi';
+import { gitCodeClient } from '../../lib/huaweicloud/GitCodeClient';
 
 /**
- * 仓库列表 Tab —— 纯 CodeArts CodeHub
- * 列出 CodeArts 项目下关联的代码仓库
+ * 仓库列表 Tab —— GitCode（atomgit）
+ * 列出当前用户的所有仓库
  */
 @Component
 export struct RepoList {
-  @State repos: CodeArtsRepository[] = []
-  @State loading: boolean = false
+  @State repos: GitCodeRepo[] = []
+  @State loading: boolean = true
   @State errorMsg: string = ''
-  onRepoSelected: (repo: CodeArtsRepository) => void = () => {}
+  onRepoSelected: (repo: GitCodeRepo) => void = () => {}
 
   aboutToAppear(): void {
     this.loadRepos()
@@ -18,7 +19,7 @@ export struct RepoList {
   private async loadRepos(): Promise<void> {
     this.loading = true
     this.errorMsg = ''
-    const resp = await codeArtsApi.listRepositories()
+    const resp = await gitCodeApi.listRepos()
     this.loading = false
     if (resp.ok && resp.data) {
       this.repos = resp.data
@@ -31,89 +32,117 @@ export struct RepoList {
     Column() {
       if (this.loading) {
         Column() {
-          LoadingProgress().width(32).height(32)
-          Text('加载仓库...').fontSize(12).fontColor($r('sys.color.font_secondary')).margin({ top: 8 })
+          LoadingProgress().width(36).height(36).color('#3B82F6')
+          Text('加载仓库...').fontSize(13).fontColor('#94A3B8').margin({ top: 12 })
         }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
       } else if (this.errorMsg.length > 0) {
         Column() {
-          Text(this.errorMsg).fontSize(12).fontColor($r('sys.color.font_secondary')).textAlign(TextAlign.Center)
-            .margin({ left: 16, right: 16 })
-          Button('重试').margin({ top: 12 }).onClick(() => this.loadRepos())
+          SymbolGlyph($r('sys.symbol.exclamationmark_circle'))
+            .fontSize(36).fontColor(['#EF4444']).margin({ bottom: 12 })
+          Text(this.errorMsg).fontSize(12).fontColor('#64748B').textAlign(TextAlign.Center)
+            .margin({ left: 24, right: 24 })
+          Button('重试').margin({ top: 16 }).type(ButtonType.Capsule)
+            .backgroundColor('#3B82F6').fontColor('#FFFFFF')
+            .onClick(() => this.loadRepos())
         }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
       } else if (this.repos.length === 0) {
         Column() {
-          Text('CodeArts 项目下暂无关联仓库').fontSize(12).fontColor($r('sys.color.font_secondary'))
+          SymbolGlyph($r('sys.symbol.tray'))
+            .fontSize(36).fontColor(['#94A3B8']).margin({ bottom: 12 })
+          Text('暂无仓库').fontSize(13).fontColor('#94A3B8')
         }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
       } else {
-        List({ space: 8 }) {
-          ForEach(this.repos, (repo: CodeArtsRepository) => {
+        List({ space: 10 }) {
+          ForEach(this.repos, (repo: GitCodeRepo) => {
             ListItem() {
-              this.buildRepoItem(repo)
+              this.buildRepoCard(repo)
             }
-          }, (repo: CodeArtsRepository) => repo.id)
+          }, (repo: GitCodeRepo) => repo.id.toString())
         }
-        .width('100%')
-        .layoutWeight(1)
-        .padding({ left: 12, right: 12, top: 8, bottom: 8 })
-        .divider({ strokeWidth: 0.5, color: $r('sys.color.comp_background_divider'), startMargin: 0, endMargin: 0 })
+        .width('100%').layoutWeight(1)
+        .padding({ left: 14, right: 14, top: 12, bottom: 12 })
+        .scrollBar(BarState.Off)
       }
     }
-    .width('100%')
-    .height('100%')
+    .width('100%').height('100%')
+    .backgroundColor('#F1F5F9')
   }
 
   @Builder
-  buildRepoItem(repo: CodeArtsRepository) {
+  buildRepoCard(repo: GitCodeRepo) {
     Row() {
+      // 左侧色条
+      Column()
+        .width(4).height('100%')
+        .backgroundColor(repo.private ? '#F59E0B' : '#3B82F6')
+        .borderRadius({ topLeft: 2, bottomLeft: 2 })
+
       Column() {
+        // 仓库名 + 私有标签
         Row() {
           Text(repo.name)
-            .fontSize(14)
-            .fontColor($r('sys.color.font_primary'))
-            .maxLines(1)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .fontSize(15).fontColor('#1E293B').fontWeight(FontWeight.Medium)
+            .maxLines(1).textOverflow({ overflow: TextOverflow.Ellipsis })
             .layoutWeight(1)
-          if (repo.visibility === 'private') {
-            Text('私有')
-              .fontSize(10)
-              .fontColor($r('sys.color.font_on_primary'))
-              .backgroundColor($r('sys.color.warning'))
-              .borderRadius(4)
-              .padding({ left: 4, right: 4, top: 1, bottom: 1 })
+          if (repo.private) {
+            Text('私有').fontSize(9).fontColor('#FFFFFF')
+              .backgroundColor('#F59E0B').borderRadius(3)
+              .padding({ left: 5, right: 5, top: 2, bottom: 2 })
               .margin({ left: 6 })
           }
-        }
-        .width('100%')
-        if (repo.description.length > 0) {
+        }.width('100%')
+
+        // 描述
+        if (repo.description && repo.description.length > 0) {
           Text(repo.description)
-            .fontSize(11)
-            .fontColor($r('sys.color.font_secondary'))
-            .maxLines(2)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
-            .margin({ top: 4 })
-            .width('100%')
+            .fontSize(11).fontColor('#64748B')
+            .maxLines(2).textOverflow({ overflow: TextOverflow.Ellipsis })
+            .margin({ top: 4 }).width('100%')
         }
+
+        // 底部统计
         Row() {
-          Text(`★ ${repo.starCount}`).fontSize(10).fontColor($r('sys.color.font_secondary')).margin({ right: 12 })
-          Text(`⑂ ${repo.forkCount}`).fontSize(10).fontColor($r('sys.color.font_secondary'))
+          if (repo.language && repo.language.length > 0) {
+            Row() {
+              Circle({ width: 6, height: 6 }).fill(this.langColor(repo.language))
+              Text(repo.language).fontSize(10).fontColor('#64748B').margin({ left: 4 })
+            }.margin({ right: 12 })
+          }
+          Text(`★ ${repo.stargazers_count}`).fontSize(10).fontColor('#94A3B8').margin({ right: 10 })
+          Text(`⑂ ${repo.forks_count}`).fontSize(10).fontColor('#94A3B8').margin({ right: 10 })
+          if (repo.open_issues_count > 0) {
+            Text(`● ${repo.open_issues_count}`).fontSize(10).fontColor('#94A3B8')
+          }
           Blank()
-          Text(repo.defaultBranch).fontSize(10).fontColor($r('sys.color.font_secondary'))
-        }
-        .width('100%')
-        .margin({ top: 6 })
+          Text(this.formatTime(repo.updated_at)).fontSize(10).fontColor('#94A3B8')
+        }.width('100%').margin({ top: 8 })
       }
       .alignItems(HorizontalAlign.Start)
       .layoutWeight(1)
+      .padding({ left: 12, right: 12, top: 12, bottom: 12 })
+
       SymbolGlyph($r('sys.symbol.chevron_right'))
-        .fontSize(16)
-        .fontColor([$r('sys.color.font_secondary')])
+        .fontSize(16).fontColor(['#CBD5E1'])
+        .margin({ right: 12 })
     }
     .width('100%')
-    .padding(10)
-    .backgroundColor($r('sys.color.comp_background_primary'))
-    .borderRadius(8)
-    .onClick(() => {
-      this.onRepoSelected(repo)
-    })
+    .backgroundColor('#FFFFFF')
+    .borderRadius(10)
+    .shadow({ radius: 2, color: '#0F172A0A', offsetX: 0, offsetY: 1 })
+    .onClick(() => this.onRepoSelected(repo))
+  }
+
+  private formatTime(iso: string): string {
+    if (!iso || iso.length === 0) return ''
+    return iso.substring(0, 10)
+  }
+
+  private langColor(lang: string): string {
+    const colors: Record<string, string> = {
+      'ArkTS': '#0080FF', 'TypeScript': '#3178C6', 'JavaScript': '#F1E05A',
+      'Python': '#3572A5', 'Java': '#B07219', 'Go': '#00ADD8', 'Rust': '#DEA584',
+      'C': '#555555', 'C++': '#F34B7D', 'HTML': '#E34C26', 'Vue': '#41B883',
+    }
+    return colors[lang] || '#94A3B8'
   }
 }

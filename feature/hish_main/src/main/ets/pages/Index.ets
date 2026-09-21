@@ -90,11 +90,9 @@ struct PcIndex {
             buttonStyle: ButtonStyleMode.TEXTUAL,
             controlSize: ControlSize.SMALL
           }) {
-            SymbolGlyph($r('sys.symbol.display'))
-              .fontSize('20vp')
-              .width(20)
-              .height(20)
-              .fontColor(['#ffffff'])
+            Text('VNC')
+              .fontSize(14)
+              .fontColor('#ffffff')
           }
           .borderRadius(4)
           .padding(4)

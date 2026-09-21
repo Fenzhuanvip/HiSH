@@ -316,10 +316,10 @@ export struct PipelineList {
   buildStatusIcon(status: string) {
     if (status === 'success' || status === 'SUCCEEDED' || status === 'completed') {
       SymbolGlyph($r('sys.symbol.checkmark_circle_fill'))
-        .fontSize(18).fontColor([$r('sys.color.success')])
+        .fontSize(18).fontColor(['#00D6B1'])
     } else if (status === 'failure' || status === 'FAILED' || status === 'error' || status === 'canceled') {
       SymbolGlyph($r('sys.symbol.xmark_circle_fill'))
-        .fontSize(18).fontColor([$r('sys.color.error')])
+        .fontSize(18).fontColor(['#E84026'])
     } else if (status === 'running' || status === 'RUNNING' || status === 'in_progress' || status === 'pending' || status === 'QUEUED') {
       LoadingProgress().width(18).height(18)
     } else {

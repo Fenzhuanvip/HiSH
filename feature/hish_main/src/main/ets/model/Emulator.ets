@@ -23,15 +23,15 @@ interface Emulator {
 
 const defaultRootfs: RootFilesystem = {
   id: 'rootfs_aarch64',
-  name: 'Alpine Linux',
+  name: 'Ubuntu 24.04',
   path: 'roots/rootfs_aarch64.qcow2'
 }
 
 const defaultEmulator: Emulator = {
   id: 'rootfs_aarch64',
   name: '默认模拟器',
-  cpu: 1,
-  memory: 512,
+  cpu: 2,
+  memory: 1024,
   init: '/init',
   portMapping: [],
   rootVda: '/dev/sda',

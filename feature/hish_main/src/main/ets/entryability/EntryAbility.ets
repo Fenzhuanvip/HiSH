@@ -12,8 +12,7 @@ import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../mod
 import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
-import { iamClient } from '../lib/huaweicloud/IamClient';
-import { codeArtsClient } from '../lib/huaweicloud/CodeArtsClient';
+import { gitCodeClient } from '../lib/huaweicloud/GitCodeClient';
 
 const DOMAIN = 0x0000;
 
@@ -262,21 +261,13 @@ export default class EntryAbility extends UIAbility {
     const aiWorkbenchVisible = await appPref.get(appOption.aiWorkbenchVisible, false) as boolean;
     AppStorage.setOrCreate(appOption.aiWorkbenchVisible, aiWorkbenchVisible);
 
-    // ===== 华为云 CodeArts 配置（AK/SK 认证）=====
-    const hwAk = await appPref.get(appOption.hwAk, '') as string;
-    AppStorage.setOrCreate(appOption.hwAk, hwAk);
-    const hwSk = await appPref.get(appOption.hwSk, '') as string;
-    AppStorage.setOrCreate(appOption.hwSk, hwSk);
-    const hwRegion = await appPref.get(appOption.hwRegion, 'cn-north-4') as string;
-    AppStorage.setOrCreate(appOption.hwRegion, hwRegion);
-    const codeartsProjectId = await appPref.get(appOption.codeartsProjectId, '') as string;
-    AppStorage.setOrCreate(appOption.codeartsProjectId, codeartsProjectId);
+    // ===== GitCode（atomgit）配置 =====
+    const gitcodeToken = await appPref.get(appOption.gitcodeToken, '') as string;
+    AppStorage.setOrCreate(appOption.gitcodeToken, gitcodeToken);
 
-    // 初始化华为云认证 + CodeArts 客户端
-    if (hwAk.length > 0 && hwSk.length > 0) {
-      iamClient.setCredentials(hwAk, hwSk, hwRegion);
-      codeArtsClient.setRegion(hwRegion);
-      codeArtsClient.setProjectId(codeartsProjectId);
+    // 初始化 GitCode 客户端
+    if (gitcodeToken.length > 0) {
+      gitCodeClient.setToken(gitcodeToken);
     }
   }
 

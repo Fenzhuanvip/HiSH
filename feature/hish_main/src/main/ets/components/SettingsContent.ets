@@ -66,15 +66,9 @@ export default struct SettingsContent {
   @Watch('saveVncPort') @StorageProp(appOption.vncPort) vncPort: number = 5900
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
-  // 华为云 CodeArts（AK/SK 认证）
-  @StorageLink(appOption.hwAk) hwAk: string = ''
-  @StorageLink(appOption.hwSk) hwSk: string = ''
-  @StorageLink(appOption.hwRegion) hwRegion: string = 'cn-north-4'
-  @StorageLink(appOption.codeartsProjectId) codeartsProjectId: string = ''
-  @State akInput: string = ''
-  @State skInput: string = ''
-  @State regionInput: string = ''
-  @State projectIdInput: string = ''
+  // GitCode（atomgit）token 认证
+  @StorageLink(appOption.gitcodeToken) gitcodeToken: string = ''
+  @State tokenInput: string = ''
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -349,6 +343,19 @@ export default struct SettingsContent {
   }
 
   @Builder
+  private buildTokenInput() {
+    TextInput({ text: this.gitcodeToken, placeholder: '在 atomgit.com → 设置 → 个人访问令牌 生成' })
+      .fontSize(12)
+      .width('60%')
+      .type(InputType.Password)
+      .onChange((val: string) => { this.tokenInput = val })
+      .onSubmit(() => {
+        this.gitcodeToken = this.tokenInput
+        savePreference(appOption.gitcodeToken, this.tokenInput, this.getUIContext())
+      })
+  }
+
+  @Builder
   private buildTerminalCursorShape() {
     Select(cursorShapeOptions)
       .width(160)
@@ -545,128 +552,27 @@ export default struct SettingsContent {
           }
           .attributeModifier(this.blockStyle)
 
-          BlockTitle({ content: '华为云 CodeArts（AK/SK）' })
+          BlockTitle({ content: 'GitCode（atomgit）' })
           Column() {
             SettingItem({
-              title: 'Access Key (AK)',
-              subTitle: '华为云控制台 → 我的凭证 → 访问密钥',
+              title: 'Personal Access Token',
+              subTitle: 'atomgit.com → 设置 → 个人访问令牌',
               content: () => {
-                TextInput({ text: this.hwAk, placeholder: 'AK...' })
-                  .fontSize(12)
-                  .width('60%')
-                  .onChange((val: string) => { this.akInput = val })
-                  .onSubmit(() => {
-                    this.hwAk = this.akInput
-                    savePreference(appOption.hwAk, this.akInput, this.getUIContext())
-                  })
-              }
-            })
-            SettingItem({
-              title: 'Secret Key (SK)',
-              subTitle: '华为云访问密钥 Secret',
-              content: () => {
-                TextInput({ text: this.hwSk, placeholder: 'SK...' })
-                  .fontSize(12)
-                  .width('60%')
-                  .type(InputType.Password)
-                  .onChange((val: string) => { this.skInput = val })
-                  .onSubmit(() => {
-                    this.hwSk = this.skInput
-                    savePreference(appOption.hwSk, this.skInput, this.getUIContext())
-                  })
-              }
-            })
-            SettingItem({
-              title: 'Region',
-              subTitle: '华为云区域',
-              content: () => {
-                TextInput({ text: this.hwRegion, placeholder: 'cn-north-4' })
-                  .fontSize(12)
-                  .width('60%')
-                  .onChange((val: string) => { this.regionInput = val })
-                  .onSubmit(() => {
-                    this.hwRegion = this.regionInput
-                    savePreference(appOption.hwRegion, this.regionInput, this.getUIContext())
-                  })
-              }
-            })
-            SettingItem({
-              title: 'CodeArts 项目 ID',
-              subTitle: 'CodeArts 项目的 project_id',
-              content: () => {
-                TextInput({ text: this.codeartsProjectId, placeholder: '项目ID' })
-                  .fontSize(12)
-                  .width('60%')
-                  .onChange((val: string) => { this.projectIdInput = val })
-                  .onSubmit(() => {
-                    this.codeartsProjectId = this.projectIdInput
-                    savePreference(appOption.codeartsProjectId, this.projectIdInput, this.getUIContext())
-                  })
+                this.buildTokenInput()
               }
             })
           }
           .attributeModifier(this.blockStyle)
 
-          BlockTitle({ content: $r('app.string.setting_block_help') })
+          BlockTitle({ content: 'AI 工作台' })
           Column() {
-
-            if (deviceInfo.deviceType !== '2in1') {
-              LinkItem({
-                icon: $r('sys.symbol.book_pages'),
-                title: $r('app.string.user_guide_title'),
-                click: () => {
-                  this.getUIContext().getRouter().pushUrl({
-                    url: 'pages/UserGuidePage'
-                  })
-                }
-              })
-            }
-
-            if (this.bundleInfo?.name === 'app.hackeris.hish') {
-              LinkItem({
-                icon: $r('sys.symbol.star'),
-                title: $r('app.string.like_this_app'),
-                click: () => {
-                  const want: Want = {
-                    uri: `store://appgallery.huawei.com/app/detail?id=${this.bundleInfo?.name}`
-                  };
-                  const context = this.getUIContext().getHostContext() as common.UIAbilityContext;
-                  context.startAbility(want)
-                }
-              })
-              LinkItem({
-                icon: $r('sys.symbol.fast_forward'),
-                title: $r('app.string.fast_code_jit'),
-                click: () => {
-                  this.getUIContext().getRouter().pushUrl({
-                    url: 'pages/GuideWebPage',
-                    params: { page: 'guide/Z1_Jit.html', title: $r('app.string.guide_jit_title') }
-                  })
-                }
-              })
-            }
-
             LinkItem({
-              icon: $r('sys.symbol.house'),
-              title: $r('app.string.code_repository'),
+              icon: $r('sys.symbol.lightbulb_fill'),
+              title: '打开 AI 工作台',
               click: () => {
-                this.toWebBrowser('https://github.com/harmoninux/hish')
-              }
-            })
-
-            LinkItem({
-              icon: $r('sys.symbol.doc_text_badge_checkmark'),
-              title: $r('app.string.open_source_license'),
-              click: () => {
-                this.openSourceController.open();
-              }
-            })
-
-            LinkItem({
-              icon: $r('sys.symbol.info_circle'),
-              title: $r('app.string.about_me'),
-              click: () => {
-                this.aboutController.open();
+                this.getUIContext().getRouter().pushUrl({
+                  url: 'pages/AiWorkbenchPage'
+                })
               }
             })
           }

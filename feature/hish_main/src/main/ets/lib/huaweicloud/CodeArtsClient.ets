@@ -1,6 +1,7 @@
 import http from '@ohos.net.http';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { iamClient, ServiceEndpoint } from './IamClient';
+import { sign } from './HwSigner';
+import appOption from '../../model/appOption';
 
 const TAG = '[CodeArtsClient]';
 const DOMAIN = 0x0002;
@@ -14,12 +15,13 @@ interface CodeArtsResult<T> {
 
 /**
  * 华为云 CodeArts API 客户端
- * 用 IAM token（X-Auth-Token）调 CodeArts 各子服务
- * 端点优先从 IAM catalog 查找，回退到命名惯例推断
+ * 用 AK/SK 签名（SDK-HMAC-SHA256）直接调 CodeArts 各子服务
  */
 class CodeArtsClient {
   private region: string = 'cn-north-4'
   private projectId: string = ''
+  private ak: string = ''
+  private sk: string = ''
 
   setRegion(region: string): void {
     this.region = region
@@ -33,6 +35,15 @@ class CodeArtsClient {
     return this.projectId
   }
 
+  setCredentials(ak: string, sk: string): void {
+    this.ak = ak
+    this.sk = sk
+  }
+
+  isConfigured(): boolean {
+    return this.ak.length > 0 && this.sk.length > 0
+  }
+
   /**
    * 通用 CodeArts API 请求
    * @param serviceType 服务类型（codehub/pipeline/codecheck/cloudbuild）
@@ -42,9 +53,8 @@ class CodeArtsClient {
    */
   async request<T>(serviceType: string, path: string, method: http.RequestMethod = http.RequestMethod.GET,
     body?: Object): Promise<CodeArtsResult<T>> {
-    const auth = await iamClient.getToken()
-    if (!auth) {
-      return { data: null, ok: false, statusCode: 401, message: 'IAM 认证失败，请检查 AK/SK' }
+    if (!this.isConfigured()) {
+      return { data: null, ok: false, statusCode: 401, message: 'AK/SK 未配置' }
     }
 
     const baseUrl = this.resolveServiceUrl(serviceType)
@@ -54,21 +64,37 @@ class CodeArtsClient {
 
     // 替换路径里的 {project_id}
     const realPath = path.replace('{project_id}', this.projectId)
-    const url = baseUrl.replace(/\/$/, '') + realPath
-    hilog.info(DOMAIN, TAG, '%{public}s %{public}s', method, url)
+    const fullUrl = baseUrl.replace(/\/$/, '') + realPath
+
+    // 从 URL 解析 host 和 path (ArkTS 不支持 URL 构造函数)
+    // URL 格式: https://host/path?query
+    const urlWithoutScheme = fullUrl.substring(fullUrl.indexOf('://') + 3)
+    const slashIdx = urlWithoutScheme.indexOf('/')
+    const host = slashIdx >= 0 ? urlWithoutScheme.substring(0, slashIdx) : urlWithoutScheme
+    const urlPath = slashIdx >= 0 ? urlWithoutScheme.substring(slashIdx) : '/'
+
+    const bodyStr = body ? JSON.stringify(body) : ''
+
+    // AK/SK 签名
+    const httpMethod = method === http.RequestMethod.GET ? 'GET' :
+      method === http.RequestMethod.POST ? 'POST' : method === http.RequestMethod.PUT ? 'PUT' : 'DELETE'
+    const signResult = await sign(this.ak, this.sk, httpMethod, host, urlPath, bodyStr)
 
     const httpRequest = http.createHttp()
     const headers: Record<string, string> = {
-      'X-Auth-Token': auth.token,
+      'Authorization': signResult.authorization,
+      'x-sdk-date': signResult.xSdkDate,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     }
 
+    hilog.info(DOMAIN, TAG, '%{public}s %{public}s%{public}s', method, host, urlPath)
+
     try {
-      const resp = await httpRequest.request(url, {
+      const resp = await httpRequest.request(fullUrl, {
         method,
         header: headers,
-        extraData: body ? JSON.stringify(body) : undefined,
+        extraData: bodyStr.length > 0 ? bodyStr : undefined,
         expectDataType: http.HttpDataType.STRING,
         connectTimeout: 15000,
         readTimeout: 30000,
@@ -91,18 +117,13 @@ class CodeArtsClient {
     }
   }
 
-  /** 解析服务端点 URL：优先 IAM catalog，回退命名惯例 */
+  /** 解析服务端点 URL */
   private resolveServiceUrl(serviceType: string): string {
-    // 先从 catalog 查
-    const fromCatalog = iamClient.findServiceUrl(serviceType)
-    if (fromCatalog) return fromCatalog
-
-    // 回退：华为云命名惯例推断
     const fallback: Record<string, string> = {
       'codehub': `https://codehub-ext.${this.region}.myhuaweicloud.com`,
       'pipeline': `https://pipeline.${this.region}.myhuaweicloud.com`,
       'codecheck': `https://codecheck.${this.region}.myhuaweicloud.com`,
-      'cloudbuild': `https://cloudbuild.${this.region}.myhuaweicloud.com`,
+      'cloudbuild': `https://cloudbuild-ext.${this.region}.myhuaweicloud.com`,
       'devcloud': `https://devcloud.${this.region}.myhuaweicloud.com`,
     }
     return fallback[serviceType] || `https://${serviceType}.${this.region}.myhuaweicloud.com`

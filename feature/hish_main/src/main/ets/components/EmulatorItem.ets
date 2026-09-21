@@ -9,14 +9,14 @@ export default struct EmulatorItem {
   @Prop emulator: Emulator
   @Prop isRunning: boolean
   @Prop isDefault: boolean
-  @Require onEdit: (item: Emulator) => void
-  @Require onDelete: (item: Emulator) => void
-  @Require onExport: (item: Emulator) => void
-  @Require onCopy: (item: Emulator) => void
-  @Require onSetDefault: (item: Emulator) => void
-  @Require onStart: (item: Emulator) => void
-  @Require onShutdown: (item: Emulator) => void
-  @Require onImageManage: (item: Emulator) => void
+  @Require onEdit!: (item: Emulator) => void
+  @Require onDelete!: (item: Emulator) => void
+  @Require onExport!: (item: Emulator) => void
+  @Require onCopy!: (item: Emulator) => void
+  @Require onSetDefault!: (item: Emulator) => void
+  @Require onStart!: (item: Emulator) => void
+  @Require onShutdown!: (item: Emulator) => void
+  @Require onImageManage!: (item: Emulator) => void
   @State storageSize: number = 0
   filesDir = this.getUIContext().getHostContext()!!.getApplicationContext().filesDir
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
