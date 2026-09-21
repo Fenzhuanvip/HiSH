@@ -1,76 +1,175 @@
 name: Build HAP
 
 on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
   workflow_dispatch:
+    inputs:
+      build_qemu:
+        description: "从源码构建 QEMU"
+        type: boolean
+        required: false
+        default: false
+      target:
+        description: "构建目标"
+        type: choice
+        options:
+          - all
+          - tablet
+          - phone
+        default: all
+
+permissions:
+  repository: read
+
+concurrency:
+  enable: true
+  max: 1
+  exceed-action: QUEUE
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    name: 完整构建 HAP
+    runs-on: [ubuntu-latest, x64, large]
+    timeout-minutes: 120
+    env:
+      OHOS_ARCH: aarch64
+      OHOS_ABI: arm64-v8a
+      CMDLINE_TOOLS_URL: ${{ secrets.CMDLINE_TOOLS_URL }}
+      BUILD_QEMU: ${{ inputs.build_qemu }}
+      BUILD_TARGET: ${{ inputs.target }}
 
     steps:
       - name: Checkout
         uses: checkout
 
+      - name: Init submodules
+        run: git submodule update --init --recursive || true
+
       - name: Setup Node.js
         uses: setup-node
         with:
-          node-version: 22
+          node-version: "20"
 
-      - name: Install deps
+      - name: Install OS packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y libatk-bridge2.0-0 libatk1.0-0 \
-            libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
-            libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64 libnss3 libnspr4 \
-            libxshmfence1 libglib2.0-0 fonts-liberation 2>/dev/null || true
+          sudo apt-get install -y \
+            build-essential cmake curl wget unzip python3 libncurses-dev \
+            git flex bison bash make autoconf libcurl4-openssl-dev tcl \
+            gettext zip pigz meson qemu-utils
 
-      - name: Extract CLT download URL
+      - name: Fetch binary resources
         run: |
-          npm install puppeteer-core @sparticuz/chromium
-          node extract-clt-url.js 2>&1 | tee puppeteer-output.txt
-          # 提取下载链接
-          grep -oP 'https?://[^\s"<>]+' puppeteer-output.txt | grep -iE '\.zip|\.tar|\.gz|contentcenter|dbankcdn|download' | head -1 > clt-url.txt || true
-          echo "CLT URL: $(cat clt-url.txt 2>/dev/null || echo '未找到')"
+          set -e
+          VM_DIR="feature/hish_main/src/main/resources/rawfile/vm"
+          LIBS_DIR="feature/hish_main/libs"
+          mkdir -p "$VM_DIR" "$LIBS_DIR"
 
-      - name: Download CLT
+          if git clone --branch resources --depth 1 --single-branch \
+            https://atomgit.com/ff-518/HiSH.git /tmp/resources-repo; then
+            if [ -f /tmp/resources-repo/resources/libvncserver.tar.gz ]; then
+              tar xzf /tmp/resources-repo/resources/libvncserver.tar.gz \
+                -C feature/hish_main/src/main/cpp/
+            fi
+            if [ -f /tmp/resources-repo/resources/libs.zip ]; then
+              unzip -qo /tmp/resources-repo/resources/libs.zip -d "$LIBS_DIR/"
+            fi
+            cp -f /tmp/resources-repo/resources/kernel_aarch64 "$VM_DIR/" 2>/dev/null || true
+            cp -f /tmp/resources-repo/resources/rootfs_aarch64.qcow2 "$VM_DIR/" 2>/dev/null || true
+          fi
+
+          if [ ! -f "$VM_DIR/kernel_aarch64" ]; then
+            wget -q --show-progress \
+              https://github.com/harmoninux/linux-config/releases/download/kernel-20260228/kernel_aarch64 \
+              -O "$VM_DIR/kernel_aarch64"
+          fi
+          if [ ! -f "$VM_DIR/rootfs_aarch64.qcow2" ]; then
+            wget -q --show-progress \
+              https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2 \
+              -O "$VM_DIR/rootfs_aarch64.qcow2"
+          fi
+          ls -lh "$VM_DIR"
+
+      - name: Prepare QEMU libs
         run: |
-          CLT_URL=$(cat clt-url.txt)
-          if [ -z "$CLT_URL" ]; then echo "未找到链接"; exit 1; fi
-          wget -q --show-progress "$CLT_URL" -O /tmp/clt.zip
-          unzip -q /tmp/clt.zip -d /opt/clt
-
-      - name: Install DevEco CLI
-        run: npm install -g @deveco/deveco-cli@latest
-
-      - name: Fetch build resources
-        run: |
-          git clone --branch resources --depth 1 --single-branch https://atomgit.com/ff-518/HiSH.git /tmp/resources-repo || \
-          git clone --branch resources --depth 1 --single-branch "https://x-access-token:${GITHUB_TOKEN}@atomgit.com/ff-518/HiSH.git" /tmp/resources-repo
-          tar xzf /tmp/resources-repo/resources/libvncserver.tar.gz -C feature/hish_main/src/main/cpp/
-          mkdir -p feature/hish_main/libs/
-          unzip -q /tmp/resources-repo/resources/libs.zip -d feature/hish_main/libs/
-          mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
-          cp /tmp/resources-repo/resources/kernel_aarch64 feature/hish_main/src/main/resources/rawfile/vm/
-          cp /tmp/resources-repo/resources/rootfs_aarch64.qcow2 feature/hish_main/src/main/resources/rawfile/vm/
+          set -e
+          if [ "$BUILD_QEMU" = "true" ]; then
+            cd deps
+            make aarch64 -j"$(nproc)"
+            ls -lh output/
+          else
+            if [ ! -d feature/hish_main/libs/arm64-v8a ] || [ -z "$(ls -A feature/hish_main/libs/arm64-v8a 2>/dev/null)" ]; then
+              wget -q --show-progress \
+                https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip \
+                -O /tmp/libs.zip
+              unzip -qo /tmp/libs.zip -d feature/hish_main/libs/
+            fi
+            ls -lh feature/hish_main/libs/arm64-v8a/ | head
+          fi
 
       - name: Configure build profile
-        run: cp build-profile.template.json5 build-profile.json5
+        run: cp -f build-profile.template.json5 build-profile.json5
+
+      - name: Download HarmonyOS Command Line Tools
+        run: |
+          set -e
+          if [ -z "$CMDLINE_TOOLS_URL" ]; then
+            echo "缺少 Secret CMDLINE_TOOLS_URL"
+            exit 1
+          fi
+          wget -q --show-progress "$CMDLINE_TOOLS_URL" -O /tmp/cmdline-tools.zip
+          sudo mkdir -p /opt/command-line-tools
+          sudo unzip -q /tmp/cmdline-tools.zip -d /opt/command-line-tools
+          HVIGORW=$(find /opt/command-line-tools -name hvigorw -type f | head -1)
+          if [ -z "$HVIGORW" ]; then
+            echo "未找到 hvigorw"
+            find /opt/command-line-tools -maxdepth 3 -type d
+            exit 1
+          fi
+          TOOL_HOME=$(cd "$(dirname "$HVIGORW")/.." && pwd)
+          echo "TOOL_HOME=$TOOL_HOME" >> "$ATOMGIT_ENV"
+          echo "DEVECO_SDK_HOME=$TOOL_HOME/sdk" >> "$ATOMGIT_ENV"
+          echo "PATH=$TOOL_HOME/bin:$(dirname "$HVIGORW"):$PATH" >> "$ATOMGIT_ENV"
+          echo "TOOL_HOME=$TOOL_HOME"
+
+      - name: Install ohpm deps
+        run: |
+          ohpm config set registry https://ohpm.openharmony.cn/ohpm/ || true
+          ohpm install || true
 
       - name: Build HAP
         run: |
-          export DEVECO_CLI_CLT_PATH=/opt/clt
-          devecocli build --build-mode release
+          set -e
+          chmod +x hvigorw 2>/dev/null || true
+          if command -v hvigorw >/dev/null 2>&1; then
+            hvigorw assembleHap --mode module -p product=default -p debuggable=false --no-daemon
+          elif [ -f hvigorw.js ]; then
+            node hvigorw.js assembleHap --mode release --no-daemon
+          else
+            npm install -g @deveco/deveco-cli@latest
+            export DEVECO_CLI_CLT_PATH="${TOOL_HOME}"
+            devecocli build --build-mode release
+          fi
 
-      - name: Collect and Upload HAP
+      - name: Collect HAP
         run: |
           mkdir -p artifacts
           find . -name "*.hap" -exec cp {} artifacts/ \;
           ls -lh artifacts/
+          test -n "$(ls -A artifacts/*.hap 2>/dev/null)"
 
-      - name: Upload HAP artifact
+      - name: Upload HAP
         uses: upload-artifact
         with:
           name: hish-hap
           path: artifacts/*.hap
-          retention-days: 30
+
+      - name: Failure hints
+        if: ${{ always() }}
+        run: |
+          echo "ref=${ATOMGIT_REF} sha=${ATOMGIT_SHA} event=${ATOMGIT_EVENT_NAME}"
