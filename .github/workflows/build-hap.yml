@@ -122,16 +122,24 @@ jobs:
       - name: Install ohpm deps
         run: |
           ohpm config set registry https://ohpm.openharmony.cn/ohpm/
-          for i in 1 2 3 4 5 6; do
-            if ohpm install; then
-              echo "ohpm install attempt $i ok"
-              exit 0
-            fi
-            echo "ohpm install attempt $i failed, retrying in 15s..."
-            sleep 15
+          install_with_retry() {
+            local dir="$1"
+            local label="${2:-root}"
+            for i in 1 2 3 4 5 6; do
+              if (cd "$dir" && ohpm install); then
+                echo "ohpm install ($label) attempt $i ok"
+                return 0
+              fi
+              echo "ohpm install ($label) attempt $i failed, retrying in 15s..."
+              sleep 15
+            done
+            echo "ohpm install ($label) failed after 6 attempts"
+            return 1
+          }
+          install_with_retry "." "root"
+          for m in product/tablet product/phone feature/hish_main; do
+            install_with_retry "$m" "$m" || exit 1
           done
-          echo "ohpm install failed after 6 attempts"
-          exit 1
 
       - name: Configure build profile
         run: cp -f build-profile.template.json5 build-profile.json5
