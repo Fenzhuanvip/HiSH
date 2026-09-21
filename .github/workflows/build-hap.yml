@@ -1,164 +1,232 @@
 name: Build HAP
 
 on:
-  push:
-    branches: [master]
-  pull_request:
-    branches: [master]
   workflow_dispatch:
-    inputs:
-      build_qemu:
-        description: '从源码构建 QEMU（false=用预编译库）'
-        required: false
-        default: 'false'
-      target:
-        description: '构建目标（tablet/phone/all）'
-        required: false
-        default: 'all'
+  push:
+    branches:
+      - master
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
+    name: Build HAP
+    runs-on: ubuntu-latest
     timeout-minutes: 60
-
-    env:
-      # HarmonyOS Command Line Tools 下载链接（需在仓库 Secrets 里配置）
-      # 从 https://developer.huawei.com/consumer/cn/download/ 下载 Linux 版
-      CMDLINE_TOOLS_URL: ${{ secrets.CMDLINE_TOOLS_URL }}
-      TOOL_HOME: /opt/command-line-tools
-      # 构建目标架构
-      OHOS_ARCH: aarch64
-      OHOS_ABI: arm64-v8a
-
     steps:
-      # ===== 1. 检出代码 + 子模块 =====
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
-          fetch-depth: 1
 
-      # ===== 2. 安装构建依赖 =====
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential cmake curl wget unzip python3 libncurses-dev \
-            git flex bison bash make autoconf libcurl4-openssl-dev tcl \
-            gettext zip pigz meson \
-            qemu-utils
-
-      # ===== 3. 下载预编译 QEMU 库 =====
-      - name: Download prebuilt QEMU libs
-        if: github.event.inputs.build_qemu != 'true'
-        run: |
-          echo "::group::下载 libs.zip"
-          wget -q --show-progress \
-            https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip \
-            -O /tmp/libs.zip
-          unzip -q /tmp/libs.zip -d feature/hish_main/libs/
-          echo "::endgroup::"
-          echo "QEMU 库文件："
-          ls -lh feature/hish_main/libs/arm64-v8a/
-
-      # ===== 3b. 从源码构建 QEMU（可选） =====
-      - name: Build QEMU from source
-        if: github.event.inputs.build_qemu == 'true'
-        run: |
-          echo "::group::构建 QEMU（arm64-v8a）"
-          cd deps
-          make aarch64 -j$(nproc)
-          echo "::endgroup::"
-          echo "构建产物："
-          ls -lh output/*.so*
-
-      # ===== 4. 下载 Linux 内核 =====
-      - name: Download kernel
-        run: |
-          mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
-          echo "::group::下载 kernel_aarch64"
-          wget -q --show-progress \
-            https://github.com/harmoninux/linux-config/releases/download/kernel-20260228/kernel_aarch64 \
-            -O feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
-          echo "::endgroup::"
-          ls -lh feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
-
-      # ===== 5. 下载根文件系统 =====
-      - name: Download rootfs
-        run: |
-          echo "::group::下载 rootfs_aarch64.qcow2"
-          wget -q --show-progress \
-            https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2 \
-            -O feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
-          echo "::endgroup::"
-          ls -lh feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
-
-      # ===== 6. 配置 build-profile.json5 =====
-      - name: Configure build profile
-        run: |
-          cp build-profile.template.json5 build-profile.json5
-          echo "build-profile.json5 内容："
-          cat build-profile.json5
-
-      # ===== 7. 安装 Node.js + hvigor =====
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: "20"
 
-      - name: Install hvigor dependencies
+      - name: Fetch binary resources
         run: |
-          npm install -g @ohos/hvigor @ohos/hvigor-ohos-plugin
-          # 安装项目依赖
-          ohpm install || true
+          set -e
+          VM_DIR="feature/hish_main/src/main/resources/rawfile/vm"
+          LIBS_DIR="feature/hish_main/libs"
+          mkdir -p "$VM_DIR" "$LIBS_DIR"
 
-      # ===== 8. 下载 HarmonyOS Command Line Tools =====
-      - name: Download HarmonyOS Command Line Tools
+          # 从 atomgit resources 分支拉取构建资源
+          if git clone --branch resources --depth 1 --single-branch \
+            "https://ff-518:fNCrAW6XzAx_P-19_RymJr7t@atomgit.com/ff-518/HiSH.git" /tmp/resources-repo; then
+            if [ -f /tmp/resources-repo/resources/libvncserver.tar.gz ]; then
+              tar xzf /tmp/resources-repo/resources/libvncserver.tar.gz \
+                -C feature/hish_main/src/main/cpp/
+            fi
+            if [ -f /tmp/resources-repo/resources/libs.zip ]; then
+              unzip -qo /tmp/resources-repo/resources/libs.zip -d "$LIBS_DIR/"
+            fi
+            cp -f /tmp/resources-repo/resources/kernel_aarch64 "$VM_DIR/" 2>/dev/null || true
+            cp -f /tmp/resources-repo/resources/rootfs_aarch64.qcow2 "$VM_DIR/" 2>/dev/null || true
+          fi
+
+          # 备用下载源
+          if [ ! -f "$VM_DIR/kernel_aarch64" ]; then
+            wget -q --show-progress \
+              https://github.com/harmoninux/linux-config/releases/download/kernel-20260228/kernel_aarch64 \
+              -O "$VM_DIR/kernel_aarch64"
+          fi
+          if [ ! -f "$VM_DIR/rootfs_aarch64.qcow2" ]; then
+            wget -q --show-progress \
+              https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2 \
+              -O "$VM_DIR/rootfs_aarch64.qcow2"
+          fi
+          ls -lh "$VM_DIR"
+
+      - name: Prepare QEMU libs
         run: |
-          if [ -z "$CMDLINE_TOOLS_URL" ]; then
-            echo "::warning::未配置 CMDLINE_TOOLS_URL Secret，跳过 SDK 下载"
-            echo "请在仓库 Settings → Secrets 配置 HarmonyOS Command Line Tools 的下载链接"
+          set -e
+          if [ ! -d feature/hish_main/libs/arm64-v8a ] || [ -z "$(ls -A feature/hish_main/libs/arm64-v8a 2>/dev/null)" ]; then
+            wget -q --show-progress \
+              https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip \
+              -O /tmp/libs.zip
+            unzip -qo /tmp/libs.zip -d feature/hish_main/libs/
+          fi
+          ls -lh feature/hish_main/libs/arm64-v8a/ | head
+
+      - name: Configure build profile
+        run: cp -f build-profile.template.json5 build-profile.json5
+
+      - name: Install Chrome dependencies (for headless browser)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            libatk-bridge2.0-0 libatk1.0-0 libcups2 libdrm2 libxkbcommon0 \
+            libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 \
+            libpango-1.0-0 libcairo2 libasound2t64 libnss3 libnspr4 \
+            libxshmfence1 libglib2.0-0 fonts-liberation > /dev/null
+
+      - name: Extract CLT download URL (headless browser)
+        run: |
+          set -e
+          mkdir -p /tmp/clt-extract
+          cat > /tmp/clt-extract/extract.js << 'EOF'
+          const puppeteer = require('puppeteer');
+
+          (async () => {
+            const browser = await puppeteer.launch({
+              headless: 'new',
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            });
+            const page = await browser.newPage();
+            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+            const apiResponses = [];
+            page.on('response', async (resp) => {
+              try {
+                const url = resp.url();
+                if (url.includes('downloadCenter') || url.includes('getTool') || url.includes('codeserver')) {
+                  const body = await resp.text().catch(() => '');
+                  apiResponses.push({ url, status: resp.status(), body: body.substring(0, 5000) });
+                  console.log('=== API RESPONSE ===');
+                  console.log('URL:', url);
+                  console.log('STATUS:', resp.status());
+                  console.log('BODY:', body.substring(0, 3000));
+                }
+              } catch (e) {}
+            });
+
+            console.log('Navigating to download page...');
+            await page.goto('https://developer.huawei.com/consumer/cn/download/', {
+              waitUntil: 'networkidle2',
+              timeout: 60000
+            });
+
+            // 等待页面渲染
+            await new Promise(r => setTimeout(r, 15000));
+
+            // 滚动触发懒加载
+            await page.evaluate(() => {
+              window.scrollTo(0, document.body.scrollHeight);
+            });
+            await new Promise(r => setTimeout(r, 8000));
+
+            // 获取页面内容
+            const text = await page.evaluate(() => document.body.innerText);
+            console.log('=== PAGE TEXT (first 3000 chars) ===');
+            console.log(text.substring(0, 3000));
+
+            // 查找所有链接
+            const links = await page.evaluate(() =>
+              Array.from(document.querySelectorAll('a')).map(a => a.href).filter(h => h && (h.includes('download') || h.includes('zip') || h.includes('dbankcdn') || h.includes('contentcenter')))
+            );
+            console.log('=== DOWNLOAD LINKS ===');
+            links.forEach(l => console.log(l));
+
+            // 查找所有按钮并点击可能的 SDK 相关项
+            const btns = await page.evaluate(() =>
+              Array.from(document.querySelectorAll('button, .btn, a')).map(b => b.innerText || '').filter(t => t && (t.includes('SDK') || t.includes('命令行') || t.includes('Command Line') || t.includes('工具')))
+            );
+            console.log('=== SDK-RELATED ELEMENTS ===');
+            btns.forEach(b => console.log(b));
+
+            console.log('=== COLLECTED API RESPONSES ===');
+            console.log(JSON.stringify(apiResponses, null, 2).substring(0, 10000));
+
+            await browser.close();
+          })().catch(e => { console.error('ERROR:', e.message); process.exit(1); });
+          EOF
+          cd /tmp/clt-extract
+          npm init -y > /dev/null 2>&1
+          npm install puppeteer --no-audit --no-fund 2>&1 | tail -2
+          node extract.js 2>&1 | tee extract-output.txt
+
+      - name: Parse CLT URL and download
+        run: |
+          set -e
+          # 从输出中提取 CLT 下载链接
+          CLT_URL=$(grep -oP 'https?://[^\s"<>]+' /tmp/clt-extract/extract-output.txt | \
+            grep -iE 'command.?line|cmdtools|clt|\.zip' | \
+            grep -viE 'node-versions|chromium|puppeteer' | head -1 || true)
+
+          echo "提取到的 CLT URL: $CLT_URL"
+
+          if [ -z "$CLT_URL" ]; then
+            echo "未从页面提取到 CLT 链接"
+            echo "尝试通过 Huawei API 直接调用..."
+            # 直接尝试 API（可能需要 session）
+            for EP in getToolList getLatestToolVersion; do
+              echo "--- $EP ---"
+              curl -sL -m 15 "https://svc-drcn.developer.huawei.com/codeserver/PartnerCommunityService/v1/developer/downloadCenter/$EP" \
+                -H "Content-Type: application/json" \
+                -H "Referer: https://developer.huawei.com/consumer/cn/download/" \
+                -H "Origin: https://developer.huawei.com" \
+                -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0" \
+                -d '{"cn":true}' | head -c 1500 || true
+              echo ""
+            done
             exit 1
           fi
-          echo "::group::下载 Command Line Tools"
-          wget -q --show-progress "$CMDLINE_TOOLS_URL" -O /tmp/cmdline-tools.zip
-          unzip -q /tmp/cmdline-tools.zip -d /opt/
-          echo "::endgroup::"
-          # 查找解压后的目录
-          TOOL_DIR=$(find /opt -name "hvigorw" -type f -exec dirname {} \; | head -1)
-          if [ -n "$TOOL_DIR" ]; then
-            echo "TOOL_HOME=$(dirname $TOOL_DIR)" >> $GITHUB_ENV
+
+          wget -q --show-progress "$CLT_URL" -O /tmp/clt.zip
+          mkdir -p /opt/command-line-tools
+          unzip -q /tmp/clt.zip -d /opt/command-line-tools
+          HVIGORW=$(find /opt/command-line-tools -name hvigorw -type f | head -1)
+          if [ -z "$HVIGORW" ]; then
+            echo "未找到 hvigorw:"
+            find /opt/command-line-tools -maxdepth 3 -type d
+            exit 1
           fi
+          TOOL_HOME=$(cd "$(dirname "$HVIGORW")/.." && pwd)
+          echo "TOOL_HOME=$TOOL_HOME" >> "$GITHUB_ENV"
+          echo "DEVECO_SDK_HOME=$TOOL_HOME/sdk" >> "$GITHUB_ENV"
+          echo "$TOOL_HOME/bin" >> "$GITHUB_PATH"
+          echo "$(dirname "$HVIGORW")" >> "$GITHUB_PATH"
 
-      # ===== 9. 构建 HAP =====
-      - name: Build HAP (release)
+      - name: Install ohpm deps
         run: |
-          chmod +x hvigorw 2>/dev/null || true
-          # 构建 tablet + phone
-          node hvigorw.js assembleHap --mode release --no-daemon
+          ohpm config set registry https://ohpm.openharmony.cn/ohpm/ || true
+          ohpm install || true
 
-      # ===== 10. 收集产物 =====
-      - name: Collect HAP artifacts
+      - name: Build HAP
+        run: |
+          set -e
+          chmod +x hvigorw 2>/dev/null || true
+          hvigorw assembleHap --mode module -p product=default -p debuggable=false --no-daemon
+
+      - name: Collect HAP
+        if: success() || failure()
         run: |
           mkdir -p artifacts
-          find . -name "*.hap" -exec cp {} artifacts/ \;
-          echo "HAP 产物："
-          ls -lh artifacts/
+          find . -name "*.hap" -exec cp {} artifacts/ \; 2>/dev/null || true
+          ls -lh artifacts/ || true
+          test -n "$(ls -A artifacts/*.hap 2>/dev/null)"
 
-      # ===== 11. 上传产物 =====
-      - name: Upload HAP
+      - name: Upload HAP artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: hish-hap-${{ github.sha }}
+          name: hish-hap
           path: artifacts/*.hap
           retention-days: 30
 
-      # ===== 12. 通知 =====
-      - name: Notify on failure
+      - name: Upload build logs on failure
         if: failure()
-        run: |
-          echo "::error::HAP 构建失败，请检查日志"
-          echo "常见问题："
-          echo "1. CMDLINE_TOOLS_URL 未配置或链接过期"
-          echo "2. QEMU 库下载失败（GitHub Release 不可达）"
-          echo "3. hvigor 构建报错（ArkTS 语法问题）"
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            /tmp/clt-extract/extract-output.txt
+          retention-days: 7
+          if-no-files-found: ignore
