@@ -17,12 +17,23 @@ jobs:
       OHOS_ABI: arm64-v8a
 
     steps:
-      # ===== 1. 检出代码 + 子模块 =====
+      # ===== 1. 检出代码 =====
       - name: Checkout
         uses: checkout
-        with:
-          submodules: recursive
-          fetch-depth: 1
+
+      # ===== 1b. 手动克隆子模块（atomgit runner 可能无法通过 checkout 递归克隆 GitHub 子模块） =====
+      - name: Clone submodules
+        run: |
+          git submodule update --init --recursive || true
+          # 如果上面失败，手动克隆
+          if [ ! -f feature/hish_main/src/main/cpp/libvncserver/README.md ]; then
+            rm -rf feature/hish_main/src/main/cpp/libvncserver
+            git clone https://github.com/harmoninux/libvncserver.git feature/hish_main/src/main/cpp/libvncserver
+            cd feature/hish_main/src/main/cpp/libvncserver
+            git checkout 009008e2f4d5a54dd71f422070df3af7b3dbc931
+          fi
+          echo "子模块状态："
+          git submodule status
 
       # ===== 2. 安装构建依赖 =====
       - name: Install build dependencies
