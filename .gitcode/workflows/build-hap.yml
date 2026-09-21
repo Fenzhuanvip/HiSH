@@ -25,7 +25,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libatk-bridge2.0-0 libatk1.0-0 libcups2 libdrm2 \
             libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
-            libgbm1 libpango-1.0-0 libcairo2 libasound2 libnss3 libnspr4 \
+            libgbm1 libpango-1.0-0 libcairo2 libasound2t64 libnss3 libnspr4 \
             libxshmfence1 libglib2.0-0 libgraphite2-3 fonts-liberation
           npm install puppeteer
           node extract-clt-url.js 2>&1 | tee puppeteer-output.txt
