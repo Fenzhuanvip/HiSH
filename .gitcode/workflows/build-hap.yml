@@ -21,20 +21,6 @@ jobs:
       - name: Checkout
         uses: checkout
 
-      # ===== 1b. 手动克隆子模块（atomgit runner 可能无法通过 checkout 递归克隆 GitHub 子模块） =====
-      - name: Clone submodules
-        run: |
-          git submodule update --init --recursive || true
-          # 如果上面失败，手动克隆
-          if [ ! -f feature/hish_main/src/main/cpp/libvncserver/README.md ]; then
-            rm -rf feature/hish_main/src/main/cpp/libvncserver
-            git clone https://github.com/harmoninux/libvncserver.git feature/hish_main/src/main/cpp/libvncserver
-            cd feature/hish_main/src/main/cpp/libvncserver
-            git checkout 009008e2f4d5a54dd71f422070df3af7b3dbc931
-          fi
-          echo "子模块状态："
-          git submodule status
-
       # ===== 2. 安装构建依赖 =====
       - name: Install build dependencies
         run: |
@@ -45,18 +31,23 @@ jobs:
             gettext zip pigz meson \
             qemu-utils
 
-      # ===== 3. 从 resources 分支获取构建资源文件 =====
+      # ===== 3. 从 resources 分支获取所有构建资源（子模块 + QEMU库 + 内核 + rootfs） =====
       - name: Fetch build resources
         run: |
           git fetch origin resources
-          mkdir -p feature/hish_main/libs/
-          mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
+          # libvncserver 子模块
+          git show resources:resources/libvncserver.tar.gz > /tmp/libvncserver.tar.gz
+          tar xzf /tmp/libvncserver.tar.gz -C feature/hish_main/src/main/cpp/
+          echo "libvncserver："
+          ls feature/hish_main/src/main/cpp/libvncserver/ | head -5
           # QEMU 库
+          mkdir -p feature/hish_main/libs/
           git show resources:resources/libs.zip > /tmp/libs.zip
           unzip -q /tmp/libs.zip -d feature/hish_main/libs/
           echo "QEMU 库文件："
           ls -lh feature/hish_main/libs/arm64-v8a/
           # 内核
+          mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
           git show resources:resources/kernel_aarch64 > feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
           ls -lh feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
           # 根文件系统
