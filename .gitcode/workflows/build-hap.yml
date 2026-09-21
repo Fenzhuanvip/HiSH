@@ -19,7 +19,7 @@ jobs:
     steps:
       # ===== 1. 检出代码 + 子模块 =====
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: checkout
         with:
           submodules: recursive
           fetch-depth: 1
@@ -76,9 +76,9 @@ jobs:
 
       # ===== 7. 安装 Node.js + hvigor =====
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: setup-node
         with:
-          node-version: '18'
+          node-version: 22
 
       - name: Install hvigor dependencies
         run: |
@@ -118,7 +118,7 @@ jobs:
 
       # ===== 11. 上传产物 =====
       - name: Upload HAP
-        uses: actions/upload-artifact@v4
+        uses: upload-artifact
         with:
           name: hish-hap-${{ github.sha }}
           path: artifacts/*.hap
