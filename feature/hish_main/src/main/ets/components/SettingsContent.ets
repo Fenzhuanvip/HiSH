@@ -564,19 +564,6 @@ export default struct SettingsContent {
           }
           .attributeModifier(this.blockStyle)
 
-          BlockTitle({ content: 'AI 工作台' })
-          Column() {
-            LinkItem({
-              icon: $r('sys.symbol.lightbulb_fill'),
-              title: '打开 AI 工作台',
-              click: () => {
-                this.getUIContext().getRouter().pushUrl({
-                  url: 'pages/AiWorkbenchPage'
-                })
-              }
-            })
-          }
-          .attributeModifier(this.blockStyle)
         }
         .margin(10)
       }
