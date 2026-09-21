@@ -1,8 +1,6 @@
 name: Build HAP
 
 on:
-  push:
-    branches: [master]
   workflow_dispatch:
 
 jobs:
@@ -10,105 +8,82 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
-    env:
-      CMDLINE_TOOLS_URL: ${{ secrets.CMDLINE_TOOLS_URL }}
-      TOOL_HOME: /opt/command-line-tools
-      OHOS_ARCH: aarch64
-      OHOS_ABI: arm64-v8a
-
     steps:
       # ===== 1. 检出代码 =====
       - name: Checkout
         uses: checkout
 
-      # ===== 2. 安装构建依赖 =====
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            build-essential cmake curl wget unzip python3 libncurses-dev \
-            git flex bison bash make autoconf libcurl4-openssl-dev tcl \
-            gettext zip pigz meson \
-            qemu-utils
-
-      # ===== 3. 从 resources 分支获取所有构建资源（子模块 + QEMU库 + 内核 + rootfs） =====
-      - name: Fetch build resources
-        run: |
-          set -x
-          # 浅克隆 resources 分支
-          git clone --branch resources --depth 1 --single-branch https://atomgit.com/ff-518/HiSH.git /tmp/resources-repo || \
-          git clone --branch resources --depth 1 --single-branch "https://x-access-token:${GITHUB_TOKEN}@atomgit.com/ff-518/HiSH.git" /tmp/resources-repo
-          ls -lh /tmp/resources-repo/resources/
-          # libvncserver 子模块
-          tar xzf /tmp/resources-repo/resources/libvncserver.tar.gz -C feature/hish_main/src/main/cpp/
-          echo "libvncserver："
-          ls feature/hish_main/src/main/cpp/libvncserver/ | head -5
-          # QEMU 库
-          mkdir -p feature/hish_main/libs/
-          unzip -q /tmp/resources-repo/resources/libs.zip -d feature/hish_main/libs/
-          echo "QEMU 库文件："
-          ls -lh feature/hish_main/libs/arm64-v8a/
-          # 内核
-          mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
-          cp /tmp/resources-repo/resources/kernel_aarch64 feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
-          ls -lh feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
-          # 根文件系统
-          cp /tmp/resources-repo/resources/rootfs_aarch64.qcow2 feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
-          ls -lh feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
-
-      # ===== 6. 配置 build-profile.json5 =====
-      - name: Configure build profile
-        run: |
-          cp build-profile.template.json5 build-profile.json5
-          echo "build-profile.json5 内容："
-          cat build-profile.json5
-
-      # ===== 7. 安装 Node.js + hvigor =====
+      # ===== 2. 安装 Node.js =====
       - name: Setup Node.js
         uses: setup-node
         with:
           node-version: 22
 
-      - name: Install hvigor dependencies
+      # ===== 3. 用 Puppeteer 提取 CLT 下载链接 =====
+      - name: Extract CLT download URL
         run: |
-          npm install -g @ohos/hvigor @ohos/hvigor-ohos-plugin
-          ohpm install || true
+          npm install puppeteer
+          node extract-clt-url.js 2>&1 | tee puppeteer-output.txt
+          # 从输出中提取下载 URL
+          grep -oP 'https?://[^\s"]+\.zip[^\s"]*' puppeteer-output.txt | head -1 > clt-url.txt || true
+          echo "CLT URL: $(cat clt-url.txt 2>/dev/null || echo '未找到')"
 
-      # ===== 8. 下载 HarmonyOS Command Line Tools =====
-      - name: Download HarmonyOS Command Line Tools
+      # ===== 4. 下载 Command Line Tools =====
+      - name: Download Command Line Tools
         run: |
-          if [ -z "$CMDLINE_TOOLS_URL" ]; then
-            echo "::warning::未配置 CMDLINE_TOOLS_URL Secret，跳过 SDK 下载"
-            echo "请在仓库 Settings → Secrets 配置 HarmonyOS Command Line Tools 的下载链接"
+          CLT_URL=$(cat clt-url.txt)
+          if [ -z "$CLT_URL" ]; then
+            echo "未找到 CLT 下载链接，退出"
             exit 1
           fi
-          echo "::group::下载 Command Line Tools"
-          wget -q --show-progress "$CMDLINE_TOOLS_URL" -O /tmp/cmdline-tools.zip
-          unzip -q /tmp/cmdline-tools.zip -d /opt/
-          echo "::endgroup::"
-          TOOL_DIR=$(find /opt -name "hvigorw" -type f -exec dirname {} \; | head -1)
-          if [ -n "$TOOL_DIR" ]; then
-            echo "TOOL_HOME=$(dirname $TOOL_DIR)" >> $GITHUB_ENV
-          fi
+          echo "下载 CLT: $CLT_URL"
+          wget -q --show-progress "$CLT_URL" -O /tmp/clt.zip
+          echo "下载完成，大小: $(ls -lh /tmp/clt.zip)"
+          unzip -q /tmp/clt.zip -d /opt/clt
+          echo "解压完成"
+          find /opt/clt -name "version.txt" -exec cat {} \;
 
-      # ===== 9. 构建 HAP =====
-      - name: Build HAP (release)
+      # ===== 5. 安装 DevEco CLI =====
+      - name: Install DevEco CLI
+        run: npm install -g @deveco/deveco-cli@latest
+
+      # ===== 6. 获取资源文件 =====
+      - name: Fetch build resources
         run: |
-          chmod +x hvigorw 2>/dev/null || true
-          node hvigorw.js assembleHap --mode release --no-daemon
+          set -x
+          git clone --branch resources --depth 1 --single-branch https://atomgit.com/ff-518/HiSH.git /tmp/resources-repo || \
+          git clone --branch resources --depth 1 --single-branch "https://x-access-token:${GITHUB_TOKEN}@atomgit.com/ff-518/HiSH.git" /tmp/resources-repo
+          ls -lh /tmp/resources-repo/resources/
+          # libvncserver 子模块
+          tar xzf /tmp/resources-repo/resources/libvncserver.tar.gz -C feature/hish_main/src/main/cpp/
+          # QEMU 库
+          mkdir -p feature/hish_main/libs/
+          unzip -q /tmp/resources-repo/resources/libs.zip -d feature/hish_main/libs/
+          # 内核 + rootfs
+          mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
+          cp /tmp/resources-repo/resources/kernel_aarch64 feature/hish_main/src/main/resources/rawfile/vm/
+          cp /tmp/resources-repo/resources/rootfs_aarch64.qcow2 feature/hish_main/src/main/resources/rawfile/vm/
 
-      # ===== 10. 收集产物 =====
-      - name: Collect HAP artifacts
+      # ===== 7. 配置 build-profile.json5 =====
+      - name: Configure build profile
+        run: cp build-profile.template.json5 build-profile.json5
+
+      # ===== 8. 构建 HAP =====
+      - name: Build HAP
+        run: |
+          export DEVECO_CLI_CLT_PATH=/opt/clt
+          devecocli build --build-mode release
+
+      # ===== 9. 收集并上传产物 =====
+      - name: Collect HAP
         run: |
           mkdir -p artifacts
           find . -name "*.hap" -exec cp {} artifacts/ \;
-          echo "HAP 产物："
           ls -lh artifacts/
 
-      # ===== 11. 上传产物 =====
       - name: Upload HAP
         uses: upload-artifact
         with:
-          name: hish-hap-${{ github.sha }}
+          name: hish-hap
           path: artifacts/*.hap
           retention-days: 30
