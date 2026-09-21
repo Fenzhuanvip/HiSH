@@ -186,7 +186,7 @@ export default struct WebTerminal {
     }] : []
     const regularOptions: MenuElement[] = [{
       value: '码道 CodeArts',
-      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.sparkles')).fontSize($r('sys.float.Title_S')),
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/AiWorkbenchPage' })
     }, {
       value: $r('app.string.menu_emulator_management'),
