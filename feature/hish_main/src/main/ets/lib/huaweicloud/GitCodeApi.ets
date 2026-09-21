@@ -9,6 +9,31 @@ import { gitCodeClient, GitCodeResult } from './GitCodeClient';
 
 // ==================== 类型定义 ====================
 
+/** GitCode 仓库所有者/用户基本信息 */
+interface GitCodeOwner {
+  login: string
+  avatar_url: string
+}
+
+/** GitCode 分支引用 */
+interface GitCodeRef {
+  ref: string
+  label: string
+}
+
+/** GitCode 提交信息 */
+interface GitCodeCommit {
+  id: string
+  message: string
+}
+
+/** GitCode 当前用户信息 */
+interface GitCodeUser {
+  login: string
+  name: string
+  avatar_url: string
+}
+
 /** GitCode 仓库 */
 interface GitCodeRepo {
   id: number
@@ -27,10 +52,7 @@ interface GitCodeRepo {
   updated_at: string
   created_at: string
   language: string
-  owner: {
-    login: string
-    avatar_url: string
-  }
+  owner: GitCodeOwner
 }
 
 /** GitCode PR */
@@ -40,20 +62,11 @@ interface GitCodePull {
   title: string
   body: string
   state: string
-  user: {
-    login: string
-    avatar_url: string
-  }
+  user: GitCodeOwner
   created_at: string
   updated_at: string
-  head: {
-    ref: string
-    label: string
-  }
-  base: {
-    ref: string
-    label: string
-  }
+  head: GitCodeRef
+  base: GitCodeRef
   mergeable: boolean
   merged: boolean
   labels: GitCodeLabel[]
@@ -66,17 +79,11 @@ interface GitCodeIssue {
   title: string
   body: string
   state: string
-  user: {
-    login: string
-    avatar_url: string
-  }
+  user: GitCodeOwner
   created_at: string
   updated_at: string
   labels: GitCodeLabel[]
-  assignee: {
-    login: string
-    avatar_url: string
-  } | null
+  assignee: GitCodeOwner | null
   comments: number
 }
 
@@ -90,10 +97,7 @@ interface GitCodeLabel {
 /** GitCode 分支 */
 interface GitCodeBranch {
   name: string
-  commit: {
-    id: string
-    message: string
-  }
+  commit: GitCodeCommit
 }
 
 // ==================== API 实现 ====================
@@ -150,8 +154,8 @@ class GitCodeApi {
   // ==================== 用户 ====================
 
   /** 获取当前用户信息 */
-  async getCurrentUser(): Promise<GitCodeResult<{ login: string; name: string; avatar_url: string }>> {
-    return gitCodeClient.request<{ login: string; name: string; avatar_url: string }>('/user')
+  async getCurrentUser(): Promise<GitCodeResult<GitCodeUser>> {
+    return gitCodeClient.request<GitCodeUser>('/user')
   }
 }
 
@@ -159,5 +163,6 @@ const gitCodeApi = new GitCodeApi()
 
 export {
   GitCodeApi, gitCodeApi,
-  GitCodeRepo, GitCodePull, GitCodeIssue, GitCodeLabel, GitCodeBranch
+  GitCodeRepo, GitCodePull, GitCodeIssue, GitCodeLabel, GitCodeBranch,
+  GitCodeOwner, GitCodeRef, GitCodeCommit, GitCodeUser
 }
