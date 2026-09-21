@@ -1,0 +1,164 @@
+name: Build HAP
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      build_qemu:
+        description: '从源码构建 QEMU（false=用预编译库）'
+        required: false
+        default: 'false'
+      target:
+        description: '构建目标（tablet/phone/all）'
+        required: false
+        default: 'all'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+
+    env:
+      # HarmonyOS Command Line Tools 下载链接（需在仓库 Secrets 里配置）
+      # 从 https://developer.huawei.com/consumer/cn/download/ 下载 Linux 版
+      CMDLINE_TOOLS_URL: ${{ secrets.CMDLINE_TOOLS_URL }}
+      TOOL_HOME: /opt/command-line-tools
+      # 构建目标架构
+      OHOS_ARCH: aarch64
+      OHOS_ABI: arm64-v8a
+
+    steps:
+      # ===== 1. 检出代码 + 子模块 =====
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      # ===== 2. 安装构建依赖 =====
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake curl wget unzip python3 libncurses-dev \
+            git flex bison bash make autoconf libcurl4-openssl-dev tcl \
+            gettext zip pigz meson \
+            qemu-utils
+
+      # ===== 3. 下载预编译 QEMU 库 =====
+      - name: Download prebuilt QEMU libs
+        if: github.event.inputs.build_qemu != 'true'
+        run: |
+          echo "::group::下载 libs.zip"
+          wget -q --show-progress \
+            https://github.com/harmoninux/qemu/releases/download/hish-20260110/libs.zip \
+            -O /tmp/libs.zip
+          unzip -q /tmp/libs.zip -d feature/hish_main/libs/
+          echo "::endgroup::"
+          echo "QEMU 库文件："
+          ls -lh feature/hish_main/libs/arm64-v8a/
+
+      # ===== 3b. 从源码构建 QEMU（可选） =====
+      - name: Build QEMU from source
+        if: github.event.inputs.build_qemu == 'true'
+        run: |
+          echo "::group::构建 QEMU（arm64-v8a）"
+          cd deps
+          make aarch64 -j$(nproc)
+          echo "::endgroup::"
+          echo "构建产物："
+          ls -lh output/*.so*
+
+      # ===== 4. 下载 Linux 内核 =====
+      - name: Download kernel
+        run: |
+          mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
+          echo "::group::下载 kernel_aarch64"
+          wget -q --show-progress \
+            https://github.com/harmoninux/linux-config/releases/download/kernel-20260228/kernel_aarch64 \
+            -O feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
+          echo "::endgroup::"
+          ls -lh feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
+
+      # ===== 5. 下载根文件系统 =====
+      - name: Download rootfs
+        run: |
+          echo "::group::下载 rootfs_aarch64.qcow2"
+          wget -q --show-progress \
+            https://github.com/harmoninux/linux-config/releases/download/rootfs-20260117/rootfs_aarch64.qcow2 \
+            -O feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
+          echo "::endgroup::"
+          ls -lh feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
+
+      # ===== 6. 配置 build-profile.json5 =====
+      - name: Configure build profile
+        run: |
+          cp build-profile.template.json5 build-profile.json5
+          echo "build-profile.json5 内容："
+          cat build-profile.json5
+
+      # ===== 7. 安装 Node.js + hvigor =====
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install hvigor dependencies
+        run: |
+          npm install -g @ohos/hvigor @ohos/hvigor-ohos-plugin
+          # 安装项目依赖
+          ohpm install || true
+
+      # ===== 8. 下载 HarmonyOS Command Line Tools =====
+      - name: Download HarmonyOS Command Line Tools
+        run: |
+          if [ -z "$CMDLINE_TOOLS_URL" ]; then
+            echo "::warning::未配置 CMDLINE_TOOLS_URL Secret，跳过 SDK 下载"
+            echo "请在仓库 Settings → Secrets 配置 HarmonyOS Command Line Tools 的下载链接"
+            exit 1
+          fi
+          echo "::group::下载 Command Line Tools"
+          wget -q --show-progress "$CMDLINE_TOOLS_URL" -O /tmp/cmdline-tools.zip
+          unzip -q /tmp/cmdline-tools.zip -d /opt/
+          echo "::endgroup::"
+          # 查找解压后的目录
+          TOOL_DIR=$(find /opt -name "hvigorw" -type f -exec dirname {} \; | head -1)
+          if [ -n "$TOOL_DIR" ]; then
+            echo "TOOL_HOME=$(dirname $TOOL_DIR)" >> $GITHUB_ENV
+          fi
+
+      # ===== 9. 构建 HAP =====
+      - name: Build HAP (release)
+        run: |
+          chmod +x hvigorw 2>/dev/null || true
+          # 构建 tablet + phone
+          node hvigorw.js assembleHap --mode release --no-daemon
+
+      # ===== 10. 收集产物 =====
+      - name: Collect HAP artifacts
+        run: |
+          mkdir -p artifacts
+          find . -name "*.hap" -exec cp {} artifacts/ \;
+          echo "HAP 产物："
+          ls -lh artifacts/
+
+      # ===== 11. 上传产物 =====
+      - name: Upload HAP
+        uses: actions/upload-artifact@v4
+        with:
+          name: hish-hap-${{ github.sha }}
+          path: artifacts/*.hap
+          retention-days: 30
+
+      # ===== 12. 通知 =====
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "::error::HAP 构建失败，请检查日志"
+          echo "常见问题："
+          echo "1. CMDLINE_TOOLS_URL 未配置或链接过期"
+          echo "2. QEMU 库下载失败（GitHub Release 不可达）"
+          echo "3. hvigor 构建报错（ArkTS 语法问题）"
