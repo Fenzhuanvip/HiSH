@@ -1,4 +1,4 @@
-import { gitCodeApi, GitCodeIssue } from '../../lib/huaweicloud/GitCodeApi';
+import { gitCodeApi, GitCodeIssue, GitCodeLabel } from '../../lib/huaweicloud/GitCodeApi';
 
 /**
  * Issue 列表 Tab —— GitCode（atomgit）Issues
@@ -115,7 +115,7 @@ export struct IssueList {
         // 标签
         if (issue.labels && issue.labels.length > 0) {
           Row() {
-            ForEach(issue.labels.slice(0, 3), (label) => {
+            ForEach(issue.labels.slice(0, 3), (label: GitCodeLabel) => {
               Text(label.name).fontSize(9).fontColor('#FFFFFF')
                 .backgroundColor(`#${label.color}`)
                 .borderRadius(3)
