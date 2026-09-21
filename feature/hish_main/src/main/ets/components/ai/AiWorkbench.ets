@@ -1,5 +1,5 @@
 import { gitCodeClient } from '../../lib/huaweicloud/GitCodeClient';
-import { gitCodeApi, GitCodeRepo } from '../../lib/huaweicloud/GitCodeApi';
+import { gitCodeApi, GitCodeRepo, GitCodeUser } from '../../lib/huaweicloud/GitCodeApi';
 import appOption from '../../model/appOption';
 import { RepoList } from './RepoList';
 import { PrList } from './PrList';
@@ -15,7 +15,7 @@ export struct AiWorkbench {
   @StorageLink(appOption.gitcodeToken) gitcodeToken: string = ''
   @State currentTabIndex: number = 0
   @State selectedRepo: GitCodeRepo | null = null
-  @State userInfo: { login: string; name: string; avatar_url: string } | null = null
+  @State userInfo: GitCodeUser | null = null
 
   aboutToAppear(): void {
     this.initClient()
