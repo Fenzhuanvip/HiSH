@@ -6,80 +6,87 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
 
     steps:
-      # ===== 1. 检出代码 =====
       - name: Checkout
         uses: checkout
 
-      # ===== 2. 安装 Node.js =====
       - name: Setup Node.js
         uses: setup-node
         with:
           node-version: 22
 
-      # ===== 3. 安装 Chrome 依赖 + Puppeteer 提取 CLT 下载链接 =====
-      - name: Extract CLT download URL
+      # ===== 直接调用华为开发者 API 获取 CLT 下载链接 =====
+      - name: Get CLT download URL via API
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libatk-bridge2.0-0 libatk1.0-0 libcups2 libdrm2 \
-            libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 \
-            libgbm1 libpango-1.0-0 libcairo2 libasound2t64 libnss3 libnspr4 \
-            libxshmfence1 libglib2.0-0 libgraphite2-3 fonts-liberation
-          npm install puppeteer
-          node extract-clt-url.js 2>&1 | tee puppeteer-output.txt
-          # 从输出中提取下载 URL
-          grep -oP 'https?://[^\s"]+\.zip[^\s"]*' puppeteer-output.txt | head -1 > clt-url.txt || true
-          echo "CLT URL: $(cat clt-url.txt 2>/dev/null || echo '未找到')"
+          set -x
+          # 尝试多种 API URL 和方式
+          BASE="https://svc-drcn.developer.huawei.com/codeserver"
+          API="PartnerCommunityService/v1/developer/downloadCenter"
+          
+          for path in "getLatestToolVersion" "getToolList"; do
+            for method in POST GET; do
+              echo "=== 尝试 $method $BASE/$API/$path ==="
+              curl -s --max-time 15 -X $method "$BASE/$API/$path" \
+                -H "Content-Type: application/json" \
+                -H "User-Agent: Mozilla/5.0" \
+                -H "Referer: https://developer.huawei.com/consumer/cn/download/" \
+                -H "Origin: https://developer.huawei.com" \
+                -d '{"toolType":"commandLineTools","osType":"linux"}' \
+                -w "\nHTTP %{http_code}\n" 2>/dev/null | head -c 2000
+              echo ""
+            done
+          done
+          
+          # 也尝试不加 /codeserver
+          BASE2="https://svc-drcn.developer.huawei.com"
+          for path in "getLatestToolVersion" "getToolList"; do
+            echo "=== 尝试 POST $BASE2/$API/$path ==="
+            curl -s --max-time 15 -X POST "$BASE2/$API/$path" \
+              -H "Content-Type: application/json" \
+              -H "User-Agent: Mozilla/5.0" \
+              -H "Referer: https://developer.huawei.com/consumer/cn/download/" \
+              -d '{}' \
+              -w "\nHTTP %{http_code}\n" 2>/dev/null | head -c 2000
+            echo ""
+          done
+          
+          # 尝试 codeserversvc
+          BASE3="https://svc-drcn.developer.huawei.com/codeserversvc"
+          for path in "getLatestToolVersion" "getToolList"; do
+            echo "=== 尝试 POST $BASE3/$API/$path ==="
+            curl -s --max-time 15 -X POST "$BASE3/$API/$path" \
+              -H "Content-Type: application/json" \
+              -H "User-Agent: Mozilla/5.0" \
+              -d '{}' \
+              -w "\nHTTP %{http_code}\n" 2>/dev/null | head -c 2000
+            echo ""
+          done
 
-      # ===== 4. 下载 Command Line Tools =====
-      - name: Download Command Line Tools
-        run: |
-          CLT_URL=$(cat clt-url.txt)
-          if [ -z "$CLT_URL" ]; then
-            echo "未找到 CLT 下载链接，退出"
-            exit 1
-          fi
-          echo "下载 CLT: $CLT_URL"
-          wget -q --show-progress "$CLT_URL" -O /tmp/clt.zip
-          echo "下载完成，大小: $(ls -lh /tmp/clt.zip)"
-          unzip -q /tmp/clt.zip -d /opt/clt
-          echo "解压完成"
-          find /opt/clt -name "version.txt" -exec cat {} \;
-
-      # ===== 5. 安装 DevEco CLI =====
       - name: Install DevEco CLI
         run: npm install -g @deveco/deveco-cli@latest
 
-      # ===== 6. 获取资源文件 =====
       - name: Fetch build resources
         run: |
-          set -x
           git clone --branch resources --depth 1 --single-branch https://atomgit.com/ff-518/HiSH.git /tmp/resources-repo || \
           git clone --branch resources --depth 1 --single-branch "https://x-access-token:${GITHUB_TOKEN}@atomgit.com/ff-518/HiSH.git" /tmp/resources-repo
           ls -lh /tmp/resources-repo/resources/
-          # libvncserver 子模块
           tar xzf /tmp/resources-repo/resources/libvncserver.tar.gz -C feature/hish_main/src/main/cpp/
-          # QEMU 库
           mkdir -p feature/hish_main/libs/
           unzip -q /tmp/resources-repo/resources/libs.zip -d feature/hish_main/libs/
-          # 内核 + rootfs
           mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
           cp /tmp/resources-repo/resources/kernel_aarch64 feature/hish_main/src/main/resources/rawfile/vm/
           cp /tmp/resources-repo/resources/rootfs_aarch64.qcow2 feature/hish_main/src/main/resources/rawfile/vm/
 
-      # ===== 7. 配置 build-profile.json5 =====
       - name: Configure build profile
         run: cp build-profile.template.json5 build-profile.json5
 
-      # ===== 8. 构建 HAP =====
       - name: Build HAP
         run: |
           export DEVECO_CLI_CLT_PATH=/opt/clt
           devecocli build --build-mode release
 
-      # ===== 9. 收集并上传产物 =====
       - name: Collect HAP
         run: |
           mkdir -p artifacts
