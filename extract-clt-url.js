@@ -4,18 +4,18 @@ const fs = require('fs');
 (async () => {
   const browser = await puppeteer.launch({
     headless: 'new',
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
   });
   const page = await browser.newPage();
   await page.setUserAgent('Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  await page.setViewport({ width: 1920, height: 1080 });
 
   // 拦截所有网络请求
-  const apiCalls = [];
-  const downloadUrls = [];
+  let apiCount = 0;
   page.on('request', req => {
     const url = req.url();
-    if (url.includes('downloadCenter') || url.includes('getTool') || url.includes('getLatest')) {
-      apiCalls.push({ method: req.method(), url, headers: req.headers() });
+    if (url.includes('downloadCenter') || url.includes('getTool') || url.includes('getLatest') || url.includes('svc-drcn')) {
+      apiCount++;
       console.log(`API CALL: ${req.method()} ${url}`);
     }
   });
@@ -25,70 +25,69 @@ const fs = require('fs');
       console.log(`API RESP: ${resp.status()} ${url}`);
       try {
         const text = await resp.text();
-        console.log(`  BODY: ${text.substring(0, 500)}`);
+        if (text.length < 2000) console.log(`  BODY: ${text}`);
+        else console.log(`  BODY (truncated): ${text.substring(0, 1000)}`);
       } catch {}
     }
   });
 
-  // 拦截下载请求
-  page.on('request', req => {
-    const url = req.url();
-    if (url.includes('.zip') || url.includes('.tar') || url.includes('.gz') || url.includes('contentcenter') || url.includes('dbankcdn')) {
-      downloadUrls.push(url);
-      console.log(`DOWNLOAD URL: ${url}`);
-    }
-  });
-
   console.log('正在加载华为开发者下载页面...');
-  await page.goto('https://developer.huawei.com/consumer/cn/download/', {
-    waitUntil: 'networkidle2',
-    timeout: 60000
-  });
+  try {
+    await page.goto('https://developer.huawei.com/consumer/cn/download/', {
+      waitUntil: 'networkidle2',
+      timeout: 30000
+    });
+  } catch (e) {
+    console.log('页面加载超时或错误: ' + e.message);
+  }
 
-  await new Promise(r => setTimeout(r, 8000));
+  // 等待更长时间
+  console.log('等待页面渲染...');
+  await new Promise(r => setTimeout(r, 15000));
+
+  // 打印页面信息
+  console.log('\n=== 页面信息 ===');
+  console.log('URL:', page.url());
+  console.log('Title:', await page.title());
+
+  // 打印 HTML 前缀
+  const html = await page.content();
+  console.log('HTML 长度:', html.length);
+  console.log('HTML 前500字符:', html.substring(0, 500));
+
+  // 打印页面文本
+  const pageText = await page.evaluate(() => document.body?.innerText || 'NO BODY');
+  console.log('\n=== 页面文本 ===');
+  console.log('文本长度:', pageText.length);
+  console.log(pageText.substring(0, 2000));
+
+  // 查找所有链接
+  console.log('\n=== 所有链接 ===');
+  const links = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('a')).map(a => ({
+      text: a.textContent.trim().substring(0, 80),
+      href: a.href
+    })).filter(l => l.text || l.href);
+  });
+  console.log(`找到 ${links.length} 个链接`);
+  links.slice(0, 30).forEach(l => console.log(`  ${l.text} -> ${l.href}`));
+
+  // 查找所有按钮
+  console.log('\n=== 所有按钮 ===');
+  const buttons = await page.evaluate(() => {
+    return Array.from(document.querySelectorAll('button, [role="button"], .download-btn, [class*="download"]')).map(b => ({
+      tag: b.tagName,
+      text: b.textContent.trim().substring(0, 80),
+      class: b.className?.toString().substring(0, 80)
+    })).filter(b => b.text);
+  });
+  console.log(`找到 ${buttons.length} 个按钮`);
+  buttons.slice(0, 20).forEach(b => console.log(`  [${b.tag}] ${b.text} (${b.class})`));
 
   // 截图
-  await page.screenshot({ path: '/tmp/download-page.png', fullPage: false });
-  console.log('截图已保存');
-
-  // 查找所有文本内容
-  const pageText = await page.evaluate(() => document.body.innerText);
-  const lines = pageText.split('\n').filter(l => l.trim());
-  console.log('\n=== 页面文本内容（前100行）===');
-  lines.slice(0, 100).forEach(l => console.log(l));
-
-  // 查找 Command Line Tools 相关元素
-  console.log('\n=== 查找 Command Line Tools ===');
-  const cltElements = await page.evaluate(() => {
-    const results = [];
-    document.querySelectorAll('*').forEach(el => {
-      const text = el.textContent.trim();
-      if (text.length < 200 && (text.includes('Command Line') || text.includes('命令行工具'))) {
-        results.push({ tag: el.tagName, text: text.substring(0, 100), id: el.id, className: el.className?.toString().substring(0, 50) });
-      }
-    });
-    return results;
-  });
-  cltElements.forEach(el => console.log(JSON.stringify(el)));
-
-  // 查找所有按钮和链接
-  console.log('\n=== 所有按钮和链接 ===');
-  const buttons = await page.evaluate(() => {
-    const results = [];
-    document.querySelectorAll('button, a, [role="button"]').forEach(el => {
-      const text = el.textContent.trim();
-      if (text && text.length < 100) {
-        results.push({ tag: el.tagName, text, href: el.href || '', onclick: el.onclick ? 'yes' : 'no' });
-      }
-    });
-    return results;
-  });
-  buttons.forEach(b => console.log(JSON.stringify(b)));
-
-  // 保存 API 调用记录
-  fs.writeFileSync('/tmp/api-calls.json', JSON.stringify(apiCalls, null, 2));
-  fs.writeFileSync('/tmp/download-urls.json', JSON.stringify(downloadUrls, null, 2));
-  console.log(`\n找到 ${apiCalls.length} 个 API 调用, ${downloadUrls.length} 个下载 URL`);
+  await page.screenshot({ path: '/tmp/download-page.png', fullPage: true });
+  console.log('\n截图已保存到 /tmp/download-page.png');
+  console.log(`API 调用数: ${apiCount}`);
 
   await browser.close();
 })().catch(e => { console.error('错误:', e.message); process.exit(1); });
