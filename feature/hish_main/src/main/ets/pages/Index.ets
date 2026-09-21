@@ -13,7 +13,7 @@ import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
 import VmStatusBar from '../components/VmStatusBar';
 import { ImmersiveButtonModifier, ImmersivePrimaryButtonModifier } from '../lib/immersiveButton';
-import AiWorkbench from '../components/ai/AiWorkbench';
+import { AiWorkbench } from '../components/ai/AiWorkbench';
 
 @Component
 struct PcIndex {
