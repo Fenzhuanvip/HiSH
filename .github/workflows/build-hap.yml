@@ -72,8 +72,18 @@ jobs:
       - name: Download HarmonyOS Command Line Tools (Huawei Cloud mirror)
         run: |
           set -e
-          wget -q --show-progress --tries=3 "$CLT_URL" -O /tmp/clt.zip
+          df -h /tmp /opt
+          for i in 1 2 3 4 5; do
+            if wget -c -q --tries=2 --timeout=60 "$CLT_URL" -O /tmp/clt.zip; then
+              echo "download attempt $i ok"
+              break
+            fi
+            echo "download attempt $i failed, retrying..."
+            sleep 5
+          done
           ls -lh /tmp/clt.zip
+          test $(stat -c%s /tmp/clt.zip) -gt 1000000000 || { echo "CLT zip too small, download incomplete"; exit 1; }
+          df -h /tmp /opt
           sudo mkdir -p "$TOOL_HOME"
           sudo unzip -q /tmp/clt.zip -d /opt/
           # zip 内部是 command-line-tools/ 目录，解压到 /opt/ 后即 /opt/command-line-tools
