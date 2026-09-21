@@ -45,7 +45,7 @@ class GitCodeClient {
 
     const httpRequest = http.createHttp()
     const headers: Record<string, string> = {
-      'Authorization': `token ${this.token}`,
+      'Authorization': `Bearer ${this.token}`,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
     }
