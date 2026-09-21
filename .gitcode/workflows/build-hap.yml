@@ -17,18 +17,17 @@ jobs:
         with:
           node-version: 22
 
-      - name: Install chromium and deps
+      - name: Install deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y chromium-browser libatk-bridge2.0-0 libatk1.0-0 \
+          sudo apt-get install -y libatk-bridge2.0-0 libatk1.0-0 \
             libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 \
             libxrandr2 libgbm1 libpango-1.0-0 libcairo2 libasound2t64 libnss3 libnspr4 \
             libxshmfence1 libglib2.0-0 fonts-liberation 2>/dev/null || true
-          which chromium chromium-browser 2>/dev/null || echo "chromium not found"
 
       - name: Extract CLT download URL
         run: |
-          npm install puppeteer-core
+          npm install puppeteer-core @sparticuz/chromium
           node extract-clt-url.js 2>&1 | tee puppeteer-output.txt
           # 提取下载链接
           grep -oP 'https?://[^\s"<>]+' puppeteer-output.txt | grep -iE '\.zip|\.tar|\.gz|contentcenter|dbankcdn|download' | head -1 > clt-url.txt || true

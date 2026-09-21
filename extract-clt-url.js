@@ -1,18 +1,10 @@
 const puppeteer = require('puppeteer-core');
+const chromium = require('@sparticuz/chromium');
 const fs = require('fs');
 
 (async () => {
-  // 查找系统 chromium
-  const { execSync } = require('child_process');
-  let chromePath;
-  for (const p of ['/usr/bin/chromium', '/usr/bin/chromium-browser', '/usr/bin/google-chrome', '/usr/bin/google-chrome-stable']) {
-    try { if (fs.existsSync(p)) { chromePath = p; break; } } catch {}
-  }
-  if (!chromePath) {
-    // 尝试 which
-    try { chromePath = execSync('which chromium chromium-browser google-chrome 2>/dev/null | head -1').toString().trim(); } catch {}
-  }
-  console.log('Chrome 路径:', chromePath || '未找到');
+  const chromePath = chromium.executablePath();
+  console.log('Chrome 路径:', chromePath);
   if (!chromePath) { console.error('未找到 chromium，退出'); process.exit(1); }
 
   const browser = await puppeteer.launch({
