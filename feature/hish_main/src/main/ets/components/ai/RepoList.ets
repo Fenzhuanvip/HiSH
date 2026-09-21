@@ -47,7 +47,7 @@ export struct RepoList {
         }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
       } else if (this.repos.length === 0) {
         Column() {
-          SymbolGlyph($r('sys.symbol.tray'))
+          SymbolGlyph($r('sys.symbol.checkmark_circle'))
             .fontSize(36).fontColor(['#94A3B8']).margin({ bottom: 12 })
           Text('暂无仓库').fontSize(13).fontColor('#94A3B8')
         }.justifyContent(FlexAlign.Center).width('100%').layoutWeight(1)
