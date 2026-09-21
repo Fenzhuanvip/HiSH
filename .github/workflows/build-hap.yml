@@ -114,7 +114,16 @@ jobs:
       - name: Install ohpm deps
         run: |
           ohpm config set registry https://ohpm.openharmony.cn/ohpm/
-          ohpm install
+          for i in 1 2 3 4 5 6; do
+            if ohpm install; then
+              echo "ohpm install attempt $i ok"
+              exit 0
+            fi
+            echo "ohpm install attempt $i failed, retrying in 15s..."
+            sleep 15
+          done
+          echo "ohpm install failed after 6 attempts"
+          exit 1
 
       - name: Configure build profile
         run: cp -f build-profile.template.json5 build-profile.json5
