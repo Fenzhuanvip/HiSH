@@ -45,46 +45,22 @@ jobs:
             gettext zip pigz meson \
             qemu-utils
 
-      # ===== 3. 下载预编译 QEMU 库（从 atomgit release） =====
-      - name: Download prebuilt QEMU libs
+      # ===== 3. 从 resources 分支获取构建资源文件 =====
+      - name: Fetch build resources
         run: |
-          echo "::group::下载 libs.zip"
-          curl -fSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            https://atomgit.com/ff-518/HiSH/releases/download/build-resources/libs.zip \
-            -o /tmp/libs.zip || \
-          curl -fSL \
-            https://atomgit.com/ff-518/HiSH/releases/download/build-resources/libs.zip \
-            -o /tmp/libs.zip
+          git fetch origin resources
+          mkdir -p feature/hish_main/libs/
+          mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
+          # QEMU 库
+          git show resources:resources/libs.zip > /tmp/libs.zip
           unzip -q /tmp/libs.zip -d feature/hish_main/libs/
-          echo "::endgroup::"
           echo "QEMU 库文件："
           ls -lh feature/hish_main/libs/arm64-v8a/
-
-      # ===== 4. 下载 Linux 内核（从 atomgit release） =====
-      - name: Download kernel
-        run: |
-          mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
-          echo "::group::下载 kernel_aarch64"
-          curl -fSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            https://atomgit.com/ff-518/HiSH/releases/download/build-resources/kernel_aarch64 \
-            -o feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64 || \
-          curl -fSL \
-            https://atomgit.com/ff-518/HiSH/releases/download/build-resources/kernel_aarch64 \
-            -o feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
-          echo "::endgroup::"
+          # 内核
+          git show resources:resources/kernel_aarch64 > feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
           ls -lh feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
-
-      # ===== 5. 下载根文件系统（从 atomgit release） =====
-      - name: Download rootfs
-        run: |
-          echo "::group::下载 rootfs_aarch64.qcow2"
-          curl -fSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            https://atomgit.com/ff-518/HiSH/releases/download/build-resources/rootfs_aarch64.qcow2 \
-            -o feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2 || \
-          curl -fSL \
-            https://atomgit.com/ff-518/HiSH/releases/download/build-resources/rootfs_aarch64.qcow2 \
-            -o feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
-          echo "::endgroup::"
+          # 根文件系统
+          git show resources:resources/rootfs_aarch64.qcow2 > feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
           ls -lh feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
 
       # ===== 6. 配置 build-profile.json5 =====
