@@ -34,7 +34,19 @@ jobs:
       # ===== 3. 从 resources 分支获取所有构建资源（子模块 + QEMU库 + 内核 + rootfs） =====
       - name: Fetch build resources
         run: |
-          git fetch origin resources
+          set -x
+          # 检查 git remote 和可用 token
+          git remote -v
+          echo "GITHUB_TOKEN=${GITHUB_TOKEN:+exists}"
+          echo "ATOMGIT_TOKEN=${ATOMGIT_TOKEN:+exists}"
+          echo "GITCODE_TOKEN=${GITCODE_TOKEN:+exists}"
+          # 尝试用 token 配置 git remote
+          if [ -n "$GITHUB_TOKEN" ]; then
+            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@atomgit.com/ff-518/HiSH.git"
+          fi
+          # fetch resources 分支
+          git fetch origin resources || echo "FETCH FAILED"
+          git branch -a
           # libvncserver 子模块
           git show resources:resources/libvncserver.tar.gz > /tmp/libvncserver.tar.gz
           tar xzf /tmp/libvncserver.tar.gz -C feature/hish_main/src/main/cpp/
