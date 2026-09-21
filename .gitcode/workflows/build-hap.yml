@@ -35,35 +35,25 @@ jobs:
       - name: Fetch build resources
         run: |
           set -x
-          # 检查 git remote 和可用 token
-          git remote -v
-          echo "GITHUB_TOKEN=${GITHUB_TOKEN:+exists}"
-          echo "ATOMGIT_TOKEN=${ATOMGIT_TOKEN:+exists}"
-          echo "GITCODE_TOKEN=${GITCODE_TOKEN:+exists}"
-          # 尝试用 token 配置 git remote
-          if [ -n "$GITHUB_TOKEN" ]; then
-            git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@atomgit.com/ff-518/HiSH.git"
-          fi
-          # fetch resources 分支
-          git fetch origin resources || echo "FETCH FAILED"
-          git branch -a
+          # 浅克隆 resources 分支
+          git clone --branch resources --depth 1 --single-branch https://atomgit.com/ff-518/HiSH.git /tmp/resources-repo || \
+          git clone --branch resources --depth 1 --single-branch "https://x-access-token:${GITHUB_TOKEN}@atomgit.com/ff-518/HiSH.git" /tmp/resources-repo
+          ls -lh /tmp/resources-repo/resources/
           # libvncserver 子模块
-          git show resources:resources/libvncserver.tar.gz > /tmp/libvncserver.tar.gz
-          tar xzf /tmp/libvncserver.tar.gz -C feature/hish_main/src/main/cpp/
+          tar xzf /tmp/resources-repo/resources/libvncserver.tar.gz -C feature/hish_main/src/main/cpp/
           echo "libvncserver："
           ls feature/hish_main/src/main/cpp/libvncserver/ | head -5
           # QEMU 库
           mkdir -p feature/hish_main/libs/
-          git show resources:resources/libs.zip > /tmp/libs.zip
-          unzip -q /tmp/libs.zip -d feature/hish_main/libs/
+          unzip -q /tmp/resources-repo/resources/libs.zip -d feature/hish_main/libs/
           echo "QEMU 库文件："
           ls -lh feature/hish_main/libs/arm64-v8a/
           # 内核
           mkdir -p feature/hish_main/src/main/resources/rawfile/vm/
-          git show resources:resources/kernel_aarch64 > feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
+          cp /tmp/resources-repo/resources/kernel_aarch64 feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
           ls -lh feature/hish_main/src/main/resources/rawfile/vm/kernel_aarch64
           # 根文件系统
-          git show resources:resources/rootfs_aarch64.qcow2 > feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
+          cp /tmp/resources-repo/resources/rootfs_aarch64.qcow2 feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
           ls -lh feature/hish_main/src/main/resources/rawfile/vm/rootfs_aarch64.qcow2
 
       # ===== 6. 配置 build-profile.json5 =====
