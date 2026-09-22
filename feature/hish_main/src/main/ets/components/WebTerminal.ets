@@ -827,7 +827,7 @@ export default struct WebTerminal {
       const userMsg: NvidiaMessage = { role: 'user', content: userInput };
       const messages: NvidiaMessage[] = [systemMsg, userMsg];
       const requestBody: NvidiaRequestBody = {
-        model: 'meta/llama3.1-70b-instruct',
+        model: AppStorage.get<string>(appOption.nvidiaModel) ?? 'meta/llama3.1-70b-instruct',
         messages: messages,
         max_tokens: 256,
         temperature: 0.7,
