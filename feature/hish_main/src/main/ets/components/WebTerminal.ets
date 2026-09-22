@@ -359,6 +359,8 @@ export default struct WebTerminal {
           .backgroundColor('#0D0D12')
 
           Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
+            .javaScriptEnabled(true)
+            .domAccessEnabled(true)
             .layoutWeight(1)
             .width('100%')
         }
