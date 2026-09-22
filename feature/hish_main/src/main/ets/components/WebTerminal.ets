@@ -4,6 +4,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libhish_main.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
+import { http } from '@kit.NetworkKit';
 import appOption, { CursorShape, savePreference, UserFont, UserFontData } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier } from '@kit.ArkUI';
@@ -337,6 +338,7 @@ export default struct WebTerminal {
       }
       }
       .height('100%')
+      .width('100%')
 
       if (this.showGitHubWebView) {
         Column() {
@@ -359,8 +361,6 @@ export default struct WebTerminal {
           .backgroundColor('#0D0D12')
 
           Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
-            .javaScriptEnabled(true)
-            .domAccessEnabled(true)
             .layoutWeight(1)
             .width('100%')
         }
@@ -370,6 +370,8 @@ export default struct WebTerminal {
       }
     }
     .height('100%')
+    .width('100%')
+    .alignContent(Alignment.TopStart)
   }
 
   @Builder
@@ -787,20 +789,88 @@ export default struct WebTerminal {
     return ''
   }
 
-  private executeAICommand() {
-    const cmd = this.matchAICommand(this.aiInputText)
-    if (cmd.length > 0) {
-      this.sendInput(cmd + '\n')
+  private async callNvidiaAI(userInput: string): Promise<string> {
+    try {
+      const httpRequest = http.createHttp();
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer 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'
+      };
+      const body = JSON.stringify({
+        model: 'meta/llama3.1-70b-instruct',
+        messages: [
+          { role: 'system', content: 'You are a Linux terminal assistant. Convert the user natural language request to a shell command. Reply with ONLY the shell command, no explanation, no markdown, no backticks.' },
+          { role: 'user', content: userInput }
+        ],
+        max_tokens: 256,
+        temperature: 0.7,
+        stream: false
+      });
+
+      const response = await httpRequest.request('https://integrate.api.nvidia.com/v1/chat/completions', {
+        method: http.RequestMethod.POST,
+        header: headers,
+        extraData: body
+      });
+
+      httpRequest.destroy();
+
+      if (response.responseCode === 200) {
+        const resultStr = typeof response.result === 'string' ? response.result as string : '';
+        if (resultStr.length > 0) {
+          const obj = JSON.parse(resultStr) as Record<string, Object>;
+          const choices = obj['choices'] as Object[];
+          if (choices && choices.length > 0) {
+            const choice = choices[0] as Record<string, Object>;
+            const message = choice['message'] as Record<string, string>;
+            const content = message['content'] ?? '';
+            return content.trim();
+          }
+        }
+      }
+      return '';
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'NVIDIA API failed: %{public}s', JSON.stringify(e));
+      return '';
+    }
+  }
+
+  private async executeAICommand() {
+    const userInput = this.aiInputText
+    if (userInput.length === 0) return
+
+    // 先尝试本地匹配
+    const localCmd = this.matchAICommand(userInput)
+    if (localCmd.length > 0) {
+      this.sendInput(localCmd + '\n')
       this.showAIInput = false
       this.aiInputText = ''
       this.getUIContext().getPromptAction().showToast({
-        message: 'AI: ' + cmd,
+        message: 'AI: ' + localCmd,
         duration: 2000
+      })
+      return
+    }
+
+    // 本地匹配不到，调用 NVIDIA AI
+    this.getUIContext().getPromptAction().showToast({
+      message: 'AI 思考中...',
+      duration: 5000
+    })
+    const aiCmd = await this.callNvidiaAI(userInput)
+
+    if (aiCmd.length > 0) {
+      this.sendInput(aiCmd + '\n')
+      this.showAIInput = false
+      this.aiInputText = ''
+      this.getUIContext().getPromptAction().showToast({
+        message: 'AI: ' + aiCmd,
+        duration: 3000
       })
     } else {
       this.getUIContext().getPromptAction().showToast({
-        message: '无法识别，试试：查看磁盘、查看内存、列出文件、查看进程、查看网络、git状态...',
-        duration: 5000
+        message: 'AI 请求失败，请重试',
+        duration: 3000
       })
     }
   }
