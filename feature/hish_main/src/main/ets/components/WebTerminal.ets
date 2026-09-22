@@ -286,7 +286,7 @@ export default struct WebTerminal {
             .height(36)
             .fontSize(14)
             .borderRadius(10)
-            .backgroundColor('#F5F5FA')
+            .backgroundColor('#1A1A2E')
             .onChange((value: string) => {
               this.aiInputText = value
             })
@@ -299,7 +299,7 @@ export default struct WebTerminal {
             .borderRadius(10)
             .fontSize(18)
             .fontColor('#FFFFFF')
-            .backgroundColor('#F472B6')
+            .backgroundColor('#A78BFA')
             .margin({ left: 6 })
             .onClick(() => {
               this.executeAICommand()
@@ -319,7 +319,7 @@ export default struct WebTerminal {
         }
         .width('100%')
         .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-        .backgroundColor('#1A1B2E')
+        .backgroundColor('#0D0D12')
       }
       if (this.virtKeyEnabled) {
         if (this.showVirtKey) {
@@ -673,7 +673,6 @@ export default struct WebTerminal {
   private computeKeyFontColor(): string {
     return '#E0E0E0'
   }
-    return '#ffffff'
   }
 
   onBgColorChanged() {
@@ -781,26 +780,6 @@ export default struct WebTerminal {
   }
 
   aboutToAppear() {
-  } else {
-          AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#FDF7FA')
-        }
-        hilog.info(DOMAIN, 'WebTerminal', 'System color mode: %{public}s', listener.matches ? 'dark' : 'light')
-      }
-      listener.on('change', applySystemColor)
-      applySystemColor()
-    } catch (e) {
-      hilog.error(DOMAIN, 'WebTerminal', 'mediaquery init failed: %{public}s', JSON.stringify(e))
-    }
-  }
-
-  aboutToDisappear() {
-    try {
-      if (this.colorModeListener) {
-        this.colorModeListener.off('change')
-        this.colorModeListener = undefined
-      }
-    } catch (e) {
-      hilog.error(DOMAIN, 'WebTerminal', 'mediaquery cleanup failed: %{public}s', JSON.stringify(e))
-    }
   }
 }
+
