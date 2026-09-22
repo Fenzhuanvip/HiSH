@@ -191,7 +191,14 @@ export default struct WebTerminal {
     }, {
       value: 'GitHub',
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.folder')).fontSize($r('sys.float.Title_S')),
-      action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/GitHubPage' })
+      action: () => {
+        this.getUIContext().getPromptAction().showToast({ message: 'Opening GitHub...' })
+        try {
+          this.getUIContext().getRouter().pushUrl({ url: 'pages/GitHubPage' })
+        } catch (e) {
+          this.getUIContext().getPromptAction().showToast({ message: 'Route failed: ' + JSON.stringify(e) })
+        }
+      }
     }, {
       value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
