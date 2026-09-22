@@ -265,127 +265,123 @@ export default struct WebTerminal {
   }
 
   build() {
-    Stack() {
+    if (this.showGitHubWebView) {
       Column() {
-      Web({
-        src: $rawfile('term/term.html'),
-        controller: this.webviewController
-      })
-        .javaScriptProxy({
-          object: this,
-          name: 'native',
-          methodList: ['sendInput', 'resize', 'load',
-            'getFontSize', 'getFontFamily',
-            'getCursorShape', 'getCursorBlink',
-            'getLigatures', 'getItalic',
-            'getBackgroundColor', 'getBackgroundImage', 'getBackgroundBlur',
-            'getUserFonts',
-            'setApplicationMode',
-            'onAvailableFontsDetected'],
-          controller: this.webviewController,
-          asyncMethodList: [],
-          permission: `{
-          "javascriptProxyPermission": {
-            "urlPermissionList": [
-              {
-                "scheme": "resource",
-                "host": "rawfile",
-                "port": "",
-                "path": ""
-              }
-            ]
-          }
-        }`
-        })
-        .backgroundColor('#1A1B2E')
-        .layoutWeight(1)
-        .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
-      if (this.showAIInput) {
         Row() {
-          TextInput({ text: this.aiInputText, placeholder: '输入你想做的事，如：查看磁盘空间' })
-            .layoutWeight(1)
+          Button('✕ 关闭')
             .height(36)
             .fontSize(14)
-            .borderRadius(10)
-            .backgroundColor('#F5F5FA')
-            .onChange((value: string) => {
-              this.aiInputText = value
-            })
-            .onSubmit(() => {
-              this.executeAICommand()
-            })
-          Button('✓')
-            .height(36)
-            .width(36)
-            .borderRadius(10)
-            .fontSize(18)
-            .fontColor('#FFFFFF')
-            .backgroundColor('#F472B6')
-            .margin({ left: 6 })
+            .fontColor('#E0E0E0')
+            .backgroundColor('#A78BFA')
+            .borderRadius(8)
+            .padding({ left: 12, right: 12 })
             .onClick(() => {
-              this.executeAICommand()
+              this.showGitHubWebView = false
             })
-          Button('✗')
-            .height(36)
-            .width(36)
-            .borderRadius(10)
-            .fontSize(16)
-            .fontColor('#9B9BA8')
-            .backgroundColor('#252637')
-            .margin({ left: 6 })
-            .onClick(() => {
-              this.showAIInput = false
-              this.aiInputText = ''
-            })
+          Blank()
         }
         .width('100%')
-        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-        .backgroundColor('#1A1B2E')
-      }
-      if (this.virtKeyEnabled) {
-        if (this.showVirtKey) {
-          this.buildVirtualKeys()
-        } else {
-          this.buildShowVirtualKeysButton()
-        }
-      }
+        .height(48)
+        .padding({ left: 12, right: 12 })
+        .backgroundColor('#0D0D12')
+
+        Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
+          .layoutWeight(1)
+          .width('100%')
       }
       .height('100%')
       .width('100%')
-
-      if (this.showGitHubWebView) {
-        Column() {
+      .backgroundColor('#0D0D12')
+    } else {
+      Column() {
+        Web({
+          src: $rawfile('term/term.html'),
+          controller: this.webviewController
+        })
+          .javaScriptProxy({
+            object: this,
+            name: 'native',
+            methodList: ['sendInput', 'resize', 'load',
+              'getFontSize', 'getFontFamily',
+              'getCursorShape', 'getCursorBlink',
+              'getLigatures', 'getItalic',
+              'getBackgroundColor', 'getBackgroundImage', 'getBackgroundBlur',
+              'getUserFonts',
+              'setApplicationMode',
+              'onAvailableFontsDetected'],
+            controller: this.webviewController,
+            asyncMethodList: [],
+            permission: `{
+            "javascriptProxyPermission": {
+              "urlPermissionList": [
+                {
+                  "scheme": "resource",
+                  "host": "rawfile",
+                  "port": "",
+                  "path": ""
+                }
+              ]
+            }
+          }`
+          })
+          .backgroundColor('#1A1B2E')
+          .layoutWeight(1)
+          .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
+        if (this.showAIInput) {
           Row() {
-            Button('✕ 关闭')
+            TextInput({ text: this.aiInputText, placeholder: '输入你想做的事，如：查看磁盘空间' })
+              .layoutWeight(1)
               .height(36)
               .fontSize(14)
               .fontColor('#E0E0E0')
-              .backgroundColor('#A78BFA')
-              .borderRadius(8)
-              .padding({ left: 12, right: 12 })
-              .onClick(() => {
-                this.showGitHubWebView = false
+              .borderRadius(10)
+              .backgroundColor('#252637')
+              .onChange((value: string) => {
+                this.aiInputText = value
               })
-            Blank()
+              .onSubmit(() => {
+                this.executeAICommand()
+              })
+            Button('✓')
+              .height(36)
+              .width(36)
+              .borderRadius(10)
+              .fontSize(18)
+              .fontColor('#FFFFFF')
+              .backgroundColor('#A78BFA')
+              .margin({ left: 6 })
+              .onClick(() => {
+                this.executeAICommand()
+              })
+            Button('✗')
+              .height(36)
+              .width(36)
+              .borderRadius(10)
+              .fontSize(16)
+              .fontColor('#9B9BA8')
+              .backgroundColor('#252637')
+              .margin({ left: 6 })
+              .onClick(() => {
+                this.showAIInput = false
+                this.aiInputText = ''
+              })
           }
           .width('100%')
-          .height(48)
-          .padding({ left: 12, right: 12 })
-          .backgroundColor('#0D0D12')
-
-          Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
-            .layoutWeight(1)
-            .width('100%')
+          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+          .backgroundColor('#1A1B2E')
         }
-        .height('100%')
-        .width('100%')
-        .backgroundColor('#0D0D12')
+        if (this.virtKeyEnabled) {
+          if (this.showVirtKey) {
+            this.buildVirtualKeys()
+          } else {
+            this.buildShowVirtualKeysButton()
+          }
+        }
       }
+      .height('100%')
     }
-    .height('100%')
-    .width('100%')
-    .alignContent(Alignment.TopStart)
   }
+
 
   @Builder
   buildShowVirtualKeysButton() {
