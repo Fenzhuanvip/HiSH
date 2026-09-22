@@ -49,6 +49,7 @@ export default struct WebTerminal {
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
   applicationMode: boolean = false
+  @State keyFontColor: string = '#ffffff'
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
   private colorModeListener?: mediaquery.MediaQueryListener = undefined
@@ -80,7 +81,7 @@ export default struct WebTerminal {
             webController.runJavaScript(`exports.paste(atob('${base64}'))`)
           }
         })
-        .fontColor(Color.White)
+        .fontColor(this.keyFontColor)
         .backgroundColor('#1A292B2E')
         .padding({ left: 12, right: 12 })
         .width('100%')
@@ -103,7 +104,7 @@ export default struct WebTerminal {
       .width(VKeyWidth)
       .borderRadius(VKeyRadius)
       .fontSize(VKeyFontSize)
-      .fontColor($r('sys.color.white'))
+      .fontColor(this.keyFontColor)
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
       .attributeModifier(this.immersiveButton)
@@ -192,11 +193,14 @@ export default struct WebTerminal {
     }, {
       value: 'GitHub',
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.folder')).fontSize($r('sys.float.Title_S')),
-      action: () => {
+      action: async () => {
+        hilog.info(DOMAIN, 'WebTerminal', 'GitHub menu clicked')
         this.getUIContext().getPromptAction().showToast({ message: 'Opening GitHub...' })
         try {
-          this.getUIContext().getRouter().pushUrl({ url: 'pages/GitHubPage' })
+          await this.getUIContext().getRouter().pushUrl({ url: 'pages/GitHubPage' })
+          hilog.info(DOMAIN, 'WebTerminal', 'GitHub pushUrl succeeded')
         } catch (e) {
+          hilog.error(DOMAIN, 'WebTerminal', 'GitHub pushUrl failed: %{public}s', JSON.stringify(e))
           this.getUIContext().getPromptAction().showToast({ message: 'Route failed: ' + JSON.stringify(e) })
         }
       }
@@ -224,7 +228,7 @@ export default struct WebTerminal {
       .borderRadius(VKeyRadius)
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
-      .fontColor($r('sys.color.white'))
+      .fontColor(this.keyFontColor)
       .attributeModifier(this.immersiveButton)
       .onClick(() => {
         this.showVirtKey = false
@@ -593,8 +597,21 @@ export default struct WebTerminal {
     return fileToDataUrl(`${filesDir}/terminal_bg/${fileName}`)
   }
 
+  private computeKeyFontColor(): string {
+    const bg = this.termBgColor
+    if (bg.startsWith('#') && bg.length >= 7) {
+      const r = parseInt(bg.substring(1, 3), 16)
+      const g = parseInt(bg.substring(3, 5), 16)
+      const b = parseInt(bg.substring(5, 7), 16)
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+      return lum > 0.5 ? '#1a1a1a' : '#ffffff'
+    }
+    return '#ffffff'
+  }
+
   onBgColorChanged() {
     this.webviewController.runJavaScript(`exports.setBackgroundColor(${JSON.stringify(this.termBgColor)})`)
+    this.keyFontColor = this.computeKeyFontColor()
   }
 
   onBgImageChanged() {
