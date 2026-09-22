@@ -6,7 +6,7 @@ import { webview } from '@kit.ArkWeb';
 import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
 import appOption, { CursorShape, savePreference, UserFont, UserFontData } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { SymbolGlyphModifier, mediaquery } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import fileToDataUrl from '../lib/fileToDataUrl';
 import { ImmersiveButtonModifier, ImmersiveToggleModifier } from '../lib/immersiveButton';
@@ -51,6 +51,7 @@ export default struct WebTerminal {
   applicationMode: boolean = false
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
+  private colorModeListener?: mediaquery.MediaQueryListener = undefined
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -631,6 +632,41 @@ export default struct WebTerminal {
       AppStorage.setOrCreate(appOption.availableFontFamilies, fonts);
     } catch (e) {
       hilog.error(DOMAIN, 'WebTerminal', 'Failed to parse available fonts: %{public}s', JSON.stringify(e));
+    }
+  }
+
+  aboutToAppear() {
+    try {
+      const mq = this.getUIContext().getMediaQuery()
+      const listener = mq.matchMediaSync('(prefers-color-scheme: dark)')
+      this.colorModeListener = listener
+      const applySystemColor = (): void => {
+        const followSystem = AppStorage.get<boolean>(appOption.terminalFollowSystemColor) ?? true
+        if (!followSystem) return
+        const hasBgImage = (AppStorage.get<string>(appOption.terminalBackgroundImage) ?? '').length > 0
+        if (hasBgImage) return
+        if (listener.matches) {
+          AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#000000')
+        } else {
+          AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#ffffff')
+        }
+        hilog.info(DOMAIN, 'WebTerminal', 'System color mode: %{public}s', listener.matches ? 'dark' : 'light')
+      }
+      listener.on('change', applySystemColor)
+      applySystemColor()
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'mediaquery init failed: %{public}s', JSON.stringify(e))
+    }
+  }
+
+  aboutToDisappear() {
+    try {
+      if (this.colorModeListener) {
+        this.colorModeListener.off('change')
+        this.colorModeListener = undefined
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'mediaquery cleanup failed: %{public}s', JSON.stringify(e))
     }
   }
 }
