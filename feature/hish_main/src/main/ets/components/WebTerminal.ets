@@ -218,7 +218,7 @@ export default struct WebTerminal {
       }
     }, {
       value: 'AI 助手',
-      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.sparkles')).fontSize($r('sys.float.Title_S')),
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.bolt')).fontSize($r('sys.float.Title_S')),
       action: () => {
         this.showAIInput = !this.showAIInput
         if (!this.showAIInput) {
