@@ -267,7 +267,36 @@ export default struct WebTerminal {
   }
 
   build() {
-    Stack() {
+    if (this.showGitHubWebView) {
+      Stack() {
+        Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
+          .height('100%')
+          .width('100%')
+          .backgroundColor('#0D0D12')
+          .onDownloadStart((event) => {
+            if (event) {
+              const url = event.url
+              const filename = event.contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ?? url.split('/').pop() ?? 'download'
+              this.downloadFile(url, filename)
+            }
+          })
+
+        Column() {}
+          .width('100%')
+          .height('100%')
+          .hitTestBehavior(HitTestMode.Transparent)
+          .gesture(
+            PanGesture()
+              .onActionEnd((event: GestureEvent) => {
+                if (event.offsetX > 50) {
+                  this.showGitHubWebView = false
+                }
+              })
+          )
+      }
+      .height('100%')
+      .width('100%')
+    } else {
       Column() {
       Web({
         src: $rawfile('term/term.html'),
@@ -354,30 +383,7 @@ export default struct WebTerminal {
       }
       }
       .height('100%')
-
-      if (this.showGitHubWebView) {
-        Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
-          .height('100%')
-          .width('100%')
-          .backgroundColor('#0D0D12')
-          .gesture(
-            PanGesture()
-              .onActionEnd((event: GestureEvent) => {
-                if (event.offsetX > 50) {
-                  this.showGitHubWebView = false
-                }
-              })
-          )
-          .onDownloadStart((event) => {
-            if (event) {
-              const url = event.url
-              const filename = event.contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ?? url.split('/').pop() ?? 'download'
-              this.downloadFile(url, filename)
-            }
-          })
-      }
     }
-    .height('100%')
   }
 
   @Builder
