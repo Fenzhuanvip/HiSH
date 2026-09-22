@@ -46,7 +46,7 @@ export struct AiWorkbenchPage {
       Web({ src: CODEARTS_AI_URL, controller: this.webController })
         .width('100%').height('100%')
         .javaScriptAccess(true).domStorageAccess(true).imageAccess(true)
-        .onlineImageAccess(true).fileAccess(true).mixedMode(MixedMode.All)
+        .onlineImageAccess(true).fileAccess(false)
         .javaScriptProxy({
           object: this, name: 'hishTerminal',
           methodList: ['sendCommand', 'sendInput'],
@@ -69,7 +69,7 @@ export struct AiWorkbenchPage {
   }
 
   sendCommand(cmd: string): void {
-    hilog.info(DOMAIN, TAG, 'sendCommand: %{public}s', cmd)
+    hilog.info(DOMAIN, TAG, 'sendCommand: len=%{public}d', cmd.length)
     try {
       const lines = cmd.split('\n')
       for (let i = 0; i < lines.length; i++) {
@@ -83,7 +83,7 @@ export struct AiWorkbenchPage {
   }
 
   sendInput(data: string): void {
-    hilog.info(DOMAIN, TAG, 'sendInput: %{public}s', data)
+    hilog.info(DOMAIN, TAG, 'sendInput: len=%{public}d', data.length)
     try { napi.sendInput(stringToArrayBuffer(data, 'utf-8')) } catch (e) {}
   }
 }
