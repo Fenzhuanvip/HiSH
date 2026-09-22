@@ -146,9 +146,15 @@ function createTerminal() {
         fontFamily: 'monospace, "Droid Sans Mono", "Courier New", "Courier", monospace',
         fontSize: 14, // Default, will be overridden by native.getFontSize()
         theme: {
-            background: 'rgba(0, 0, 0, 0)', // Transparent by default to show effects behind
-            foreground: '#ffffff',
-            cursor: '#ffffff'
+            background: 'rgba(0, 0, 0, 0)',
+            foreground: '#E2E2E9',
+            cursor: '#F472B6',
+            cursorAccent: '#1A1B2E',
+            selection: 'rgba(244, 114, 182, 0.2)',
+            black: '#1A1B2E', red: '#F472B6', green: '#34D399', yellow: '#FBBF24',
+            blue: '#38BDF8', magenta: '#A78BFA', cyan: '#22D3EE', white: '#E2E2E9',
+            brightBlack: '#9B9BA8', brightRed: '#F9A8D4', brightGreen: '#6EE7B7', brightYellow: '#FCD34D',
+            brightBlue: '#7DD3FC', brightMagenta: '#C4B5FD', brightCyan: '#67E8F9', brightWhite: '#F5F5FA'
         },
         screenReaderMode: false, // Disabled to fix touch scrolling issues (was conflicting with native selection)
         scrollback: 3000, // [Optimization] Limit scrollback to 3000 lines (Ring Buffer) to prevent memory overflow
@@ -561,18 +567,32 @@ exports.setItalic = (enabled) => {
 exports.setBackgroundColor = (color) => {
     if (!color) return;
     document.body.style.backgroundColor = color;
-    // 根据背景色亮度自动调整字体和光标颜色
     var r = 0, g = 0, b = 0;
     var m = color.match(/^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})/);
     if (m) { r = parseInt(m[1],16); g = parseInt(m[2],16); b = parseInt(m[3],16); }
     else { m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/); if (m) { r = +m[1]; g = +m[2]; b = +m[3]; } }
     var lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    var fg = lum > 0.5 ? '#1a1a1a' : '#ffffff';
-    // 重新设置整个 theme 对象，触发 xterm.js 重新渲染
-    term.options.theme = Object.assign({}, term.options.theme, {
-        foreground: fg,
-        cursor: fg
-    });
+    if (lum > 0.5) {
+        // Sakura Day - 浅色主题
+        term.options.theme = {
+            background: color, foreground: '#4A4A5C', cursor: '#EC4899', cursorAccent: color,
+            selection: 'rgba(236, 72, 153, 0.15)',
+            black: '#4A4A5C', red: '#EC4899', green: '#059669', yellow: '#D97706',
+            blue: '#0284C7', magenta: '#7C3AED', cyan: '#0891B2', white: '#FDF7FA',
+            brightBlack: '#9B9BA8', brightRed: '#DB2777', brightGreen: '#047857', brightYellow: '#B45309',
+            brightBlue: '#0369A1', brightMagenta: '#6D28D9', brightCyan: '#0E7490', brightWhite: '#1A1B2E'
+        };
+    } else {
+        // Sakura Night - 深色主题
+        term.options.theme = {
+            background: color, foreground: '#E2E2E9', cursor: '#F472B6', cursorAccent: color,
+            selection: 'rgba(244, 114, 182, 0.2)',
+            black: '#1A1B2E', red: '#F472B6', green: '#34D399', yellow: '#FBBF24',
+            blue: '#38BDF8', magenta: '#A78BFA', cyan: '#22D3EE', white: '#E2E2E9',
+            brightBlack: '#9B9BA8', brightRed: '#F9A8D4', brightGreen: '#6EE7B7', brightYellow: '#FCD34D',
+            brightBlue: '#7DD3FC', brightMagenta: '#C4B5FD', brightCyan: '#67E8F9', brightWhite: '#F5F5FA'
+        };
+    }
 };
 
 exports.setBackgroundImage = (dataUrl) => {
