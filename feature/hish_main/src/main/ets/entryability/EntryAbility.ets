@@ -44,7 +44,7 @@ function getFreeVncPort(min: number, max: number): number | undefined {
 
 export default class EntryAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_DARK);
+    this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onCreate');
   }
 
@@ -236,6 +236,8 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.terminalBackgroundImage, terminalBackgroundImage);
     const terminalBackgroundBlur = await appPref.get(appOption.terminalBackgroundBlur, 0) as number;
     AppStorage.setOrCreate(appOption.terminalBackgroundBlur, terminalBackgroundBlur);
+    const terminalFollowSystemColor = await appPref.get(appOption.terminalFollowSystemColor, true) as boolean;
+    AppStorage.setOrCreate(appOption.terminalFollowSystemColor, terminalFollowSystemColor);
     const terminalUserFonts =
       JSON.parse(await appPref.get(appOption.terminalUserFonts, '[]') as string) as UserFont[];
     AppStorage.setOrCreate(appOption.terminalUserFonts, terminalUserFonts);
