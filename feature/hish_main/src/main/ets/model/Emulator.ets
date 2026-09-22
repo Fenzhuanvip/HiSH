@@ -31,7 +31,7 @@ const defaultEmulator: Emulator = {
   id: 'rootfs_aarch64',
   name: '默认模拟器',
   cpu: 2,
-  memory: 1024,
+  memory: 1536,
   init: '/init',
   portMapping: [],
   rootVda: '/dev/sda',
