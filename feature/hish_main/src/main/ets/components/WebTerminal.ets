@@ -82,7 +82,7 @@ export default struct WebTerminal {
           }
         })
         .fontColor(this.keyFontColor)
-        .backgroundColor('#1A292B2E')
+        .backgroundColor('#1AF472B6')
         .padding({ left: 12, right: 12 })
         .width('100%')
       MenuItem({ content: $r('app.string.menu_clear_screen') })
@@ -107,6 +107,7 @@ export default struct WebTerminal {
       .fontColor(this.keyFontColor)
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
+      .backgroundColor('#1AF472B6')
       .attributeModifier(this.immersiveButton)
       .onClick(() => {
         if (this.applicationMode && appCode) {
@@ -267,7 +268,7 @@ export default struct WebTerminal {
           }
         }`
         })
-        .backgroundColor('#000')
+        .backgroundColor('#1A1B2E')
         .layoutWeight(1)
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
       if (this.virtKeyEnabled) {
@@ -663,9 +664,9 @@ export default struct WebTerminal {
         const hasBgImage = (AppStorage.get<string>(appOption.terminalBackgroundImage) ?? '').length > 0
         if (hasBgImage) return
         if (listener.matches) {
-          AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#000000')
+          AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#1A1B2E')
         } else {
-          AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#ffffff')
+          AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#FDF7FA')
         }
         hilog.info(DOMAIN, 'WebTerminal', 'System color mode: %{public}s', listener.matches ? 'dark' : 'light')
       }
