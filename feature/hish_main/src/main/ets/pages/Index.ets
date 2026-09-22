@@ -11,7 +11,6 @@ import { Emulator } from "../model/Emulator";
 import RootfsManagementContent from "../components/RootfsManagementContent";
 import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
-import VmStatusBar from '../components/VmStatusBar';
 import { ImmersiveButtonModifier, ImmersivePrimaryButtonModifier } from '../lib/immersiveButton';
 
 @Component
@@ -74,11 +73,6 @@ struct PcIndex {
           Text($r('app.string.EntryAbility_label'))
             .fontColor($r('sys.color.white'))
             .margin({ left: 10 })
-        }
-
-        if (this.displayStatusBar) {
-          VmStatusBar({ reactive: false })
-            .margin({ left: 20 })
         }
 
         Blank()
@@ -348,22 +342,9 @@ struct PcIndex {
 
 @Component
 struct PhoneOrTablet {
-  @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
 
   build() {
     Column() {
-      if (this.displayStatusBar) {
-        // 虚拟机状态监控条
-        Row() {
-          VmStatusBar({ reactive: true })
-            .layoutWeight(1)
-        }
-        .width('100%')
-        .height(28)
-        .padding({ left: 6, right: 6 })
-        .backgroundColor($r('sys.color.ohos_id_color_sub_background'))
-      }
-
       WebTerminal({ virtKeyEnabled: true })
         .layoutWeight(1)
     }
