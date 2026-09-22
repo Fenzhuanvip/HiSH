@@ -561,6 +561,19 @@ exports.setItalic = (enabled) => {
 exports.setBackgroundColor = (color) => {
     if (!color) return;
     document.body.style.backgroundColor = color;
+    // 根据背景色亮度自动调整字体和光标颜色
+    var r = 0, g = 0, b = 0;
+    var m = color.match(/^#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})/);
+    if (m) { r = parseInt(m[1],16); g = parseInt(m[2],16); b = parseInt(m[3],16); }
+    else { m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/); if (m) { r = +m[1]; g = +m[2]; b = +m[3]; } }
+    var lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    if (lum > 0.5) {
+        term.options.theme.foreground = '#1a1a1a';
+        term.options.theme.cursor = '#1a1a1a';
+    } else {
+        term.options.theme.foreground = '#ffffff';
+        term.options.theme.cursor = '#ffffff';
+    }
 };
 
 exports.setBackgroundImage = (dataUrl) => {
