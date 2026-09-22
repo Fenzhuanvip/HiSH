@@ -9,26 +9,8 @@ const DOMAIN = 0x0001;
 const CODEARTS_AI_URL = 'https://developer.huaweicloud.com/codeartsco.html';
 
 /**
- * 自动点击"在线体验"按钮，跳过产品落地页
- */
-const AUTO_ENTER_SCRIPT = `(function() {
-  try {
-    var btns = document.querySelectorAll('a, button, span, div');
-    for (var i = 0; i < btns.length; i++) {
-      var el = btns[i];
-      var text = (el.innerText || el.textContent || '').trim();
-      if (text === '在线体验' || text === '立即体验' || text === '开始使用' || text === '进入控制台') {
-        console.log('[HiSH] auto-clicking:', text);
-        el.click();
-        return true;
-      }
-    }
-  } catch(e) { console.error('[HiSH] auto-enter failed:', e); }
-  return false;
-})()`;
-
-/**
- * 提取并执行 !hish:exec 命令块
+ * 逐行解析页面文本，提取 !hish:exec 和 !hish:end 之间的命令行
+ * 只发送标记之间的命令，标记本身和非命令文本不发送
  */
 const EXEC_SCRIPT = `(function() {
   try {
@@ -36,10 +18,27 @@ const EXEC_SCRIPT = `(function() {
     if (document.body && document.body.innerText) {
       text = document.body.innerText;
     }
-    var regex = /!hish:\\s*exec\\s*([\\s\\S]*?)!hish:\\s*end/g;
-    var match;
-    while ((match = regex.exec(text)) !== null) {
-      var cmd = match[1].trim();
+    var lines = text.split('\\n');
+    var inCmd = false;
+    var cmds = [];
+    var currentCmd = [];
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (line === '!hish:exec') {
+        inCmd = true;
+        currentCmd = [];
+      } else if (line === '!hish:end') {
+        if (inCmd && currentCmd.length > 0) {
+          cmds.push(currentCmd.join('\\n'));
+        }
+        inCmd = false;
+        currentCmd = [];
+      } else if (inCmd) {
+        currentCmd.push(lines[i]);
+      }
+    }
+    for (var j = 0; j < cmds.length; j++) {
+      var cmd = cmds[j].trim();
       if (cmd.length === 0) continue;
       var hash = cmd.substring(0, 200);
       if (!window.__hishExecuted) window.__hishExecuted = {};
@@ -53,15 +52,13 @@ const EXEC_SCRIPT = `(function() {
 })()`;
 
 /**
- * 码道 CodeArts —— 全屏 WebView
- * 自动跳过落地页 + 轮询桥接终端控制
+ * 码道 CodeArts —— 全屏 WebView + 逐行解析桥接
  */
 @Entry
 @Component
 export struct AiWorkbenchPage {
   webController: webview.WebviewController = new webview.WebviewController()
   pollTimer: number = -1
-  @State hasEnteredAI: boolean = false
 
   build() {
     Column() {
@@ -89,23 +86,9 @@ export struct AiWorkbenchPage {
             }
           }`
         })
-        .onPageEnd((e) => {
-          hilog.info(DOMAIN, TAG, 'Web loaded: %{public}s', e.url)
-          // 尝试自动点击"在线体验"跳过落地页
-          if (!this.hasEnteredAI) {
-            try {
-              this.webController.runJavaScript(AUTO_ENTER_SCRIPT).then((result: string) => {
-                if (result === 'true') {
-                  this.hasEnteredAI = true
-                  hilog.info(DOMAIN, TAG, 'Auto-entered AI experience')
-                }
-              }).catch(() => {})
-            } catch (e) {}
-          }
-          // 启动轮询桥接
-          if (this.pollTimer < 0) {
-            this.startPollBridge()
-          }
+        .onPageEnd(() => {
+          hilog.info(DOMAIN, TAG, 'Web loaded, starting poll bridge')
+          this.startPollBridge()
         })
         .onErrorReceive((e) => {
           hilog.error(DOMAIN, TAG, 'Web error: %{public}s', JSON.stringify(e?.error))
@@ -129,11 +112,21 @@ export struct AiWorkbenchPage {
     }, 2000)
   }
 
+  /**
+   * JavaScript Bridge: 逐行发送命令到终端
+   * 每行单独发送，避免多行命令的换行符问题
+   */
   sendCommand(cmd: string): void {
     hilog.info(DOMAIN, TAG, 'sendCommand: %{public}s', cmd)
     try {
-      const buffer = stringToArrayBuffer(cmd + '\\n', 'utf-8')
-      napi.sendInput(buffer)
+      const lines = cmd.split('\n')
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim()
+        if (line.length > 0) {
+          const buffer = stringToArrayBuffer(line + '\n', 'utf-8')
+          napi.sendInput(buffer)
+        }
+      }
     } catch (e) {
       hilog.error(DOMAIN, TAG, 'sendCommand failed: %{public}s', JSON.stringify(e))
     }
