@@ -7,7 +7,7 @@ import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit';
 import appOption, { CursorShape, savePreference, UserFont, UserFontData } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
-import { SymbolGlyphModifier } from '@kit.ArkUI';
+import { SymbolGlyphModifier, mediaquery } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import fileToDataUrl from '../lib/fileToDataUrl';
 import { ImmersiveButtonModifier, ImmersiveToggleModifier } from '../lib/immersiveButton';
@@ -70,6 +70,7 @@ export default struct WebTerminal {
   githubWebController: webview.WebviewController = new webview.WebviewController()
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
+  private colorModeListener?: mediaquery.MediaQueryListener = undefined
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -265,123 +266,125 @@ export default struct WebTerminal {
   }
 
   build() {
-    if (this.showGitHubWebView) {
+    Stack() {
       Column() {
+      Web({
+        src: $rawfile('term/term.html'),
+        controller: this.webviewController
+      })
+        .javaScriptProxy({
+          object: this,
+          name: 'native',
+          methodList: ['sendInput', 'resize', 'load',
+            'getFontSize', 'getFontFamily',
+            'getCursorShape', 'getCursorBlink',
+            'getLigatures', 'getItalic',
+            'getBackgroundColor', 'getBackgroundImage', 'getBackgroundBlur',
+            'getUserFonts',
+            'setApplicationMode',
+            'onAvailableFontsDetected'],
+          controller: this.webviewController,
+          asyncMethodList: [],
+          permission: `{
+          "javascriptProxyPermission": {
+            "urlPermissionList": [
+              {
+                "scheme": "resource",
+                "host": "rawfile",
+                "port": "",
+                "path": ""
+              }
+            ]
+          }
+        }`
+        })
+        .backgroundColor('#1A1B2E')
+        .layoutWeight(1)
+        .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
+      if (this.showAIInput) {
         Row() {
-          Button('✕ 关闭')
+          TextInput({ text: this.aiInputText, placeholder: '输入你想做的事，如：查看磁盘空间' })
+            .layoutWeight(1)
             .height(36)
             .fontSize(14)
             .fontColor('#E0E0E0')
-            .backgroundColor('#A78BFA')
-            .borderRadius(8)
-            .padding({ left: 12, right: 12 })
-            .onClick(() => {
-              this.showGitHubWebView = false
+            .borderRadius(10)
+            .backgroundColor('#252637')
+            .onChange((value: string) => {
+              this.aiInputText = value
             })
-          Blank()
+            .onSubmit(() => {
+              this.executeAICommand()
+            })
+          Button('✓')
+            .height(36)
+            .width(36)
+            .borderRadius(10)
+            .fontSize(18)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#A78BFA')
+            .margin({ left: 6 })
+            .onClick(() => {
+              this.executeAICommand()
+            })
+          Button('✗')
+            .height(36)
+            .width(36)
+            .borderRadius(10)
+            .fontSize(16)
+            .fontColor('#9B9BA8')
+            .backgroundColor('#252637')
+            .margin({ left: 6 })
+            .onClick(() => {
+              this.showAIInput = false
+              this.aiInputText = ''
+            })
         }
         .width('100%')
-        .height(48)
-        .padding({ left: 12, right: 12 })
-        .backgroundColor('#0D0D12')
-
-        Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
-          .layoutWeight(1)
-          .width('100%')
+        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+        .backgroundColor('#1A1B2E')
+      }
+      if (this.virtKeyEnabled) {
+        if (this.showVirtKey) {
+          this.buildVirtualKeys()
+        } else {
+          this.buildShowVirtualKeysButton()
+        }
+      }
       }
       .height('100%')
-      .width('100%')
-      .backgroundColor('#0D0D12')
-    } else {
-      Column() {
-        Web({
-          src: $rawfile('term/term.html'),
-          controller: this.webviewController
-        })
-          .javaScriptProxy({
-            object: this,
-            name: 'native',
-            methodList: ['sendInput', 'resize', 'load',
-              'getFontSize', 'getFontFamily',
-              'getCursorShape', 'getCursorBlink',
-              'getLigatures', 'getItalic',
-              'getBackgroundColor', 'getBackgroundImage', 'getBackgroundBlur',
-              'getUserFonts',
-              'setApplicationMode',
-              'onAvailableFontsDetected'],
-            controller: this.webviewController,
-            asyncMethodList: [],
-            permission: `{
-            "javascriptProxyPermission": {
-              "urlPermissionList": [
-                {
-                  "scheme": "resource",
-                  "host": "rawfile",
-                  "port": "",
-                  "path": ""
-                }
-              ]
-            }
-          }`
-          })
-          .backgroundColor('#1A1B2E')
-          .layoutWeight(1)
-          .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
-        if (this.showAIInput) {
+
+      if (this.showGitHubWebView) {
+        Column() {
           Row() {
-            TextInput({ text: this.aiInputText, placeholder: '输入你想做的事，如：查看磁盘空间' })
-              .layoutWeight(1)
-              .height(36)
-              .fontSize(14)
-              .fontColor('#E0E0E0')
-              .borderRadius(10)
-              .backgroundColor('#252637')
-              .onChange((value: string) => {
-                this.aiInputText = value
-              })
-              .onSubmit(() => {
-                this.executeAICommand()
-              })
-            Button('✓')
-              .height(36)
-              .width(36)
-              .borderRadius(10)
-              .fontSize(18)
-              .fontColor('#FFFFFF')
-              .backgroundColor('#A78BFA')
-              .margin({ left: 6 })
-              .onClick(() => {
-                this.executeAICommand()
-              })
-            Button('✗')
-              .height(36)
-              .width(36)
-              .borderRadius(10)
-              .fontSize(16)
-              .fontColor('#9B9BA8')
-              .backgroundColor('#252637')
-              .margin({ left: 6 })
-              .onClick(() => {
-                this.showAIInput = false
-                this.aiInputText = ''
-              })
+            Text('→ 滑动关闭')
+              .fontSize(12)
+              .fontColor('#A78BFA')
+              .opacity(0.6)
           }
           .width('100%')
-          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-          .backgroundColor('#1A1B2E')
-        }
-        if (this.virtKeyEnabled) {
-          if (this.showVirtKey) {
-            this.buildVirtualKeys()
-          } else {
-            this.buildShowVirtualKeysButton()
-          }
-        }
-      }
-      .height('100%')
-    }
-  }
+          .height(32)
+          .backgroundColor('#0D0D12')
+          .gesture(
+            PanGesture()
+              .onActionEnd((event: GestureEvent) => {
+                if (event.offsetX > 50) {
+                  this.showGitHubWebView = false
+                }
+              })
+          )
 
+          Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
+            .layoutWeight(1)
+            .width('100%')
+        }
+        .height('100%')
+        .width('100%')
+        .backgroundColor('#0D0D12')
+      }
+    }
+    .height('100%')
+  }
 
   @Builder
   buildShowVirtualKeysButton() {
@@ -849,7 +852,6 @@ export default struct WebTerminal {
     const userInput = this.aiInputText
     if (userInput.length === 0) return
 
-    // 先尝试本地匹配
     const localCmd = this.matchAICommand(userInput)
     if (localCmd.length > 0) {
       this.sendInput(localCmd + '\n')
@@ -862,7 +864,6 @@ export default struct WebTerminal {
       return
     }
 
-    // 本地匹配不到，调用 NVIDIA AI
     this.getUIContext().getPromptAction().showToast({
       message: 'AI 思考中...',
       duration: 5000
@@ -886,9 +887,37 @@ export default struct WebTerminal {
   }
 
   aboutToAppear() {
-    // 深色模式由 EntryAbility 强制设置，无需 mediaquery 跟随系统
+    try {
+      const mq = this.getUIContext().getMediaQuery()
+      const listener = mq.matchMediaSync('(prefers-color-scheme: dark)')
+      this.colorModeListener = listener
+      const applySystemColor = (): void => {
+        const followSystem = AppStorage.get<boolean>(appOption.terminalFollowSystemColor) ?? true
+        if (!followSystem) return
+        const hasBgImage = (AppStorage.get<string>(appOption.terminalBackgroundImage) ?? '').length > 0
+        if (hasBgImage) return
+        if (listener.matches) {
+          AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#1A1B2E')
+        } else {
+          AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#FDF7FA')
+        }
+        hilog.info(DOMAIN, 'WebTerminal', 'System color mode: %{public}s', listener.matches ? 'dark' : 'light')
+      }
+      listener.on('change', applySystemColor)
+      applySystemColor()
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'mediaquery init failed: %{public}s', JSON.stringify(e))
+    }
   }
 
   aboutToDisappear() {
+    try {
+      if (this.colorModeListener) {
+        this.colorModeListener.off('change')
+        this.colorModeListener = undefined
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'mediaquery cleanup failed: %{public}s', JSON.stringify(e))
+    }
   }
 }
