@@ -189,6 +189,10 @@ export default struct WebTerminal {
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/AiWorkbenchPage' })
     }, {
+      value: 'GitHub',
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_clockwise')).fontSize($r('sys.float.Title_S')),
+      action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/GitHubPage' })
+    }, {
       value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })
