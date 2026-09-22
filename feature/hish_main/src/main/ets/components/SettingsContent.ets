@@ -539,18 +539,6 @@ export default struct SettingsContent {
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.runningInBackground, !this.runningInBackground)
             })
-            SettingItem({
-              title: '跟随系统颜色',
-              subTitle: '终端背景色跟随系统深色/浅色模式',
-              content: () => {
-                this.setDisplayStatusBar()
-              }
-            }).onClick(() => {
-              const value: boolean = !this.displayStatusBar;
-              AppStorage.setOrCreate(appOption.displayStatusBar, value)
-              AppStorage.setOrCreate(appOption.terminalFollowSystemColor, value)
-              this.showDisplayStatusBarToast(value)
-            })
           }
           .attributeModifier(this.blockStyle)
 
