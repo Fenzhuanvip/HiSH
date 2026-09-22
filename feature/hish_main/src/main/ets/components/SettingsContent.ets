@@ -69,6 +69,9 @@ export default struct SettingsContent {
   // GitCode（atomgit）token 认证
   @StorageLink(appOption.gitcodeToken) gitcodeToken: string = ''
   @State tokenInput: string = ''
+  // NVIDIA AI API Key
+  @Watch('saveNvidiaApiKey') @StorageLink(appOption.nvidiaApiKey) nvidiaApiKey: string = ''
+  @State apiKeyInput: string = ''
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -357,6 +360,24 @@ export default struct SettingsContent {
   }
 
   @Builder
+  private buildApiKeyInput() {
+    TextInput({ text: this.nvidiaApiKey, placeholder: 'nvapi-...' })
+      .fontSize(12)
+      .width('60%')
+      .type(InputType.Password)
+      .fontColor('#E0E0E0')
+      .backgroundColor('#252637')
+      .onChange((val: string) => { this.apiKeyInput = val })
+      .onSubmit(() => {
+        this.nvidiaApiKey = this.apiKeyInput
+      })
+  }
+
+  async saveNvidiaApiKey() {
+    await savePreference(appOption.nvidiaApiKey, this.nvidiaApiKey, this.getUIContext())
+  }
+
+  @Builder
   private buildTerminalCursorShape() {
     Select(cursorShapeOptions)
       .width(160)
@@ -538,6 +559,18 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.runningInBackground, !this.runningInBackground)
+            })
+          }
+          .attributeModifier(this.blockStyle)
+
+          BlockTitle({ content: 'AI 助手' })
+          Column() {
+            SettingItem({
+              title: 'NVIDIA API Key',
+              subTitle: '在 build.nvidia.com 生成，用于 AI 自然语言转命令',
+              content: () => {
+                this.buildApiKeyInput()
+              }
             })
           }
           .attributeModifier(this.blockStyle)
