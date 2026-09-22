@@ -1,4 +1,4 @@
-import { hilog } from '@kit.Per$kit.PerformanceAnalysisKit';
+import { hilog } from '@kit.PerformanceAnalysisKit';
 import { webview } from '@kit.ArkWeb';
 import napi from 'libhish_main.so';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
