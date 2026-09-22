@@ -9,9 +9,26 @@ const DOMAIN = 0x0001;
 const CODEARTS_AI_URL = 'https://developer.huaweicloud.com/codeartsco.html';
 
 /**
- * 在 WebView 里直接提取并执行 !hish:exec 命令块
- * 通过 hishTerminal.sendCommand() 调用 ArkTS 侧的终端控制
- * 用 window.__hishExecuted 去重，避免重复执行
+ * 自动点击"在线体验"按钮，跳过产品落地页
+ */
+const AUTO_ENTER_SCRIPT = `(function() {
+  try {
+    var btns = document.querySelectorAll('a, button, span, div');
+    for (var i = 0; i < btns.length; i++) {
+      var el = btns[i];
+      var text = (el.innerText || el.textContent || '').trim();
+      if (text === '在线体验' || text === '立即体验' || text === '开始使用' || text === '进入控制台') {
+        console.log('[HiSH] auto-clicking:', text);
+        el.click();
+        return true;
+      }
+    }
+  } catch(e) { console.error('[HiSH] auto-enter failed:', e); }
+  return false;
+})()`;
+
+/**
+ * 提取并执行 !hish:exec 命令块
  */
 const EXEC_SCRIPT = `(function() {
   try {
@@ -30,23 +47,21 @@ const EXEC_SCRIPT = `(function() {
       window.__hishExecuted[hash] = true;
       try {
         hishTerminal.sendCommand(cmd);
-      } catch(e) {
-        console.error('[HiSH Bridge] sendCommand failed:', e);
-      }
+      } catch(e) {}
     }
   } catch(e) {}
 })()`;
 
 /**
- * 码道 CodeArts —— 全屏 WebView + ArkTS 侧轮询
- * 每 2 秒用 runJavaScript 在 WebView 里执行提取脚本
- * 脚本直接调用 hishTerminal.sendCommand() 控制终端
+ * 码道 CodeArts —— 全屏 WebView
+ * 自动跳过落地页 + 轮询桥接终端控制
  */
 @Entry
 @Component
 export struct AiWorkbenchPage {
   webController: webview.WebviewController = new webview.WebviewController()
   pollTimer: number = -1
+  @State hasEnteredAI: boolean = false
 
   build() {
     Column() {
@@ -74,9 +89,23 @@ export struct AiWorkbenchPage {
             }
           }`
         })
-        .onPageEnd(() => {
-          hilog.info(DOMAIN, TAG, 'Web loaded, starting poll bridge')
-          this.startPollBridge()
+        .onPageEnd((e) => {
+          hilog.info(DOMAIN, TAG, 'Web loaded: %{public}s', e.url)
+          // 尝试自动点击"在线体验"跳过落地页
+          if (!this.hasEnteredAI) {
+            try {
+              this.webController.runJavaScript(AUTO_ENTER_SCRIPT).then((result: string) => {
+                if (result === 'true') {
+                  this.hasEnteredAI = true
+                  hilog.info(DOMAIN, TAG, 'Auto-entered AI experience')
+                }
+              }).catch(() => {})
+            } catch (e) {}
+          }
+          // 启动轮询桥接
+          if (this.pollTimer < 0) {
+            this.startPollBridge()
+          }
         })
         .onErrorReceive((e) => {
           hilog.error(DOMAIN, TAG, 'Web error: %{public}s', JSON.stringify(e?.error))
@@ -96,9 +125,7 @@ export struct AiWorkbenchPage {
     this.pollTimer = setInterval(() => {
       try {
         this.webController.runJavaScript(EXEC_SCRIPT)
-      } catch (e) {
-        // 页面可能还在加载，忽略
-      }
+      } catch (e) {}
     }, 2000)
   }
 
