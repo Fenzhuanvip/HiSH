@@ -15,7 +15,7 @@ export function getVirtualKeyMetrics(deviceType: string): VirtualKeyMetrics {
     height: 28,
     width: isPhone ? 42 : 60,
     fontSize: isPhone ? 10 : 14,
-    radius: 5
+    radius: 10
   }
 }
 
