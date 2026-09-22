@@ -23,8 +23,8 @@ export struct GitHubPage {
         .domStorageAccess(true)
         .imageAccess(true)
         .onlineImageAccess(true)
-        .fileAccess(true)
-        .mixedMode(MixedMode.All)
+        .fileAccess(false)
+        
         .javaScriptProxy({
           object: this, name: 'hishTerminal',
           methodList: ['sendCommand', 'sendInput'],
@@ -121,7 +121,7 @@ export struct GitHubPage {
   }
 
   sendCommand(cmd: string): void {
-    hilog.info(DOMAIN, TAG, 'sendCommand: %{public}s', cmd)
+    hilog.info(DOMAIN, TAG, 'sendCommand: len=%{public}d', cmd.length)
     try {
       const buffer = stringToArrayBuffer(cmd + '\n', 'utf-8')
       napi.sendInput(buffer)
@@ -131,7 +131,7 @@ export struct GitHubPage {
   }
 
   sendInput(data: string): void {
-    hilog.info(DOMAIN, TAG, 'sendInput: %{public}s', data)
+    hilog.info(DOMAIN, TAG, 'sendInput: len=%{public}d', data.length)
     try { napi.sendInput(stringToArrayBuffer(data, 'utf-8')) } catch (e) {}
   }
 }
