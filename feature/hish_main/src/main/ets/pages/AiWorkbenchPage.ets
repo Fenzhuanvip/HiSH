@@ -1,41 +1,27 @@
-import { hilog } from '@kit.PerformanceAnalysisKit';
+import { hilog } from '@kit.Per$kit.PerformanceAnalysisKit';
 import { webview } from '@kit.ArkWeb';
 import napi from 'libhish_main.so';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 
 const TAG = '[AiWorkbenchPage]';
 const DOMAIN = 0x0001;
-
 const CODEARTS_AI_URL = 'https://developer.huaweicloud.com/codeartsco.html';
 
-/**
- * 逐行解析页面文本，提取 !hish:exec 和 !hish:end 之间的命令行
- * 只发送标记之间的命令，标记本身和非命令文本不发送
- */
 const EXEC_SCRIPT = `(function() {
   try {
     var text = '';
-    if (document.body && document.body.innerText) {
-      text = document.body.innerText;
-    }
+    if (document.body && document.body.innerText) text = document.body.innerText;
     var lines = text.split('\\n');
     var inCmd = false;
     var cmds = [];
     var currentCmd = [];
     for (var i = 0; i < lines.length; i++) {
       var line = lines[i].trim();
-      if (line === '!hish:exec') {
-        inCmd = true;
-        currentCmd = [];
-      } else if (line === '!hish:end') {
-        if (inCmd && currentCmd.length > 0) {
-          cmds.push(currentCmd.join('\\n'));
-        }
-        inCmd = false;
-        currentCmd = [];
-      } else if (inCmd) {
-        currentCmd.push(lines[i]);
-      }
+      if (line === '!hish:exec') { inCmd = true; currentCmd = []; }
+      else if (line === '!hish:end') {
+        if (inCmd && currentCmd.length > 0) cmds.push(currentCmd.join('\\n'));
+        inCmd = false; currentCmd = [];
+      } else if (inCmd) currentCmd.push(lines[i]);
     }
     for (var j = 0; j < cmds.length; j++) {
       var cmd = cmds[j].trim();
@@ -44,16 +30,11 @@ const EXEC_SCRIPT = `(function() {
       if (!window.__hishExecuted) window.__hishExecuted = {};
       if (window.__hishExecuted[hash]) continue;
       window.__hishExecuted[hash] = true;
-      try {
-        hishTerminal.sendCommand(cmd);
-      } catch(e) {}
+      try { hishTerminal.sendCommand(cmd); } catch(e) {}
     }
   } catch(e) {}
 })()`;
 
-/**
- * 码道 CodeArts —— 全屏 WebView + 逐行解析桥接
- */
 @Entry
 @Component
 export struct AiWorkbenchPage {
@@ -63,59 +44,30 @@ export struct AiWorkbenchPage {
   build() {
     Column() {
       Web({ src: CODEARTS_AI_URL, controller: this.webController })
-        .width('100%')
-        .height('100%')
-        .javaScriptAccess(true)
-        .domStorageAccess(true)
-        .imageAccess(true)
-        .onlineImageAccess(true)
-        .fileAccess(true)
-        .mixedMode(MixedMode.All)
+        .width('100%').height('100%')
+        .javaScriptAccess(true).domStorageAccess(true).imageAccess(true)
+        .onlineImageAccess(true).fileAccess(true).mixedMode(MixedMode.All)
         .javaScriptProxy({
-          object: this,
-          name: 'hishTerminal',
+          object: this, name: 'hishTerminal',
           methodList: ['sendCommand', 'sendInput'],
-          controller: this.webController,
-          asyncMethodList: [],
-          permission: `{
-            "javascriptProxyPermission": {
-              "urlPermissionList": [
-                { "scheme": "https", "host": "developer.huaweicloud.com", "port": "", "path": "" },
-                { "scheme": "https", "host": "devcloud.cn-north-4.huaweicloud.com", "port": "", "path": "" }
-              ]
-            }
-          }`
+          controller: this.webController, asyncMethodList: [],
+          permission: `{"javascriptProxyPermission":{"urlPermissionList":[{"scheme":"https","host":"developer.huaweicloud.com","port":"","path":""},{"scheme":"https","host":"devcloud.cn-north-4.huaweicloud.com","port":"","path":""}]}}`
         })
-        .onPageEnd(() => {
-          hilog.info(DOMAIN, TAG, 'Web loaded, starting poll bridge')
-          this.startPollBridge()
-        })
-        .onErrorReceive((e) => {
-          hilog.error(DOMAIN, TAG, 'Web error: %{public}s', JSON.stringify(e?.error))
-        })
-    }
-    .width('100%').height('100%')
+        .onPageEnd(() => { this.startPollBridge() })
+        .onErrorReceive((e) => { hilog.error(DOMAIN, TAG, 'Web error: %{public}s', JSON.stringify(e?.error)) })
+    }.width('100%').height('100%')
   }
 
   aboutToDisappear(): void {
-    if (this.pollTimer >= 0) {
-      clearInterval(this.pollTimer)
-      this.pollTimer = -1
-    }
+    if (this.pollTimer >= 0) { clearInterval(this.pollTimer); this.pollTimer = -1; }
   }
 
   private startPollBridge(): void {
     this.pollTimer = setInterval(() => {
-      try {
-        this.webController.runJavaScript(EXEC_SCRIPT)
-      } catch (e) {}
+      try { this.webController.runJavaScript(EXEC_SCRIPT) } catch (e) {}
     }, 2000)
   }
 
-  /**
-   * JavaScript Bridge: 逐行发送命令到终端
-   * 每行单独发送，避免多行命令的换行符问题
-   */
   sendCommand(cmd: string): void {
     hilog.info(DOMAIN, TAG, 'sendCommand: %{public}s', cmd)
     try {
@@ -127,18 +79,11 @@ export struct AiWorkbenchPage {
           napi.sendInput(buffer)
         }
       }
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'sendCommand failed: %{public}s', JSON.stringify(e))
-    }
+    } catch (e) { hilog.error(DOMAIN, TAG, 'sendCommand failed: %{public}s', JSON.stringify(e)) }
   }
 
   sendInput(data: string): void {
     hilog.info(DOMAIN, TAG, 'sendInput: %{public}s', data)
-    try {
-      const buffer = stringToArrayBuffer(data, 'utf-8')
-      napi.sendInput(buffer)
-    } catch (e) {
-      hilog.error(DOMAIN, TAG, 'sendInput failed: %{public}s', JSON.stringify(e))
-    }
+    try { napi.sendInput(stringToArrayBuffer(data, 'utf-8')) } catch (e) {}
   }
 }
