@@ -140,7 +140,7 @@ function createTerminal() {
     }
 
     var options = {
-        cursorBlink: true,
+        cursorBlink: false, // PERF: 默认关闭省电
         allowProposedApi: true, // Needed for some addons
         allowTransparency: true, // User preference: Transparency supported
         fontFamily: 'monospace, "Droid Sans Mono", "Courier New", "Courier", monospace',
@@ -157,7 +157,7 @@ function createTerminal() {
             brightBlue: '#7DD3FC', brightMagenta: '#C4B5FD', brightCyan: '#67E8F9', brightWhite: '#F5F5FA'
         },
         screenReaderMode: false, // Disabled to fix touch scrolling issues (was conflicting with native selection)
-        scrollback: 3000, // [Optimization] Limit scrollback to 3000 lines (Ring Buffer) to prevent memory overflow
+        scrollback: 2000, // [Optimization] Limit scrollback to 3000 lines (Ring Buffer) to prevent memory overflow
     };
 
     term = new Terminal(options);
