@@ -370,6 +370,11 @@ export default struct WebTerminal {
             .height('100%')
             .width('100%')
             .backgroundColor('#000000')
+            .domStorageAccess(true)
+            .databaseAccess(true)
+            .imageAccess(true)
+            .zoomAccess(false)
+            .fileAccess(false)
             .onDownloadStart((event) => {
               if (event) {
                 const url = event.url
@@ -851,7 +856,8 @@ export default struct WebTerminal {
       const response = await httpRequest.request('https://integrate.api.nvidia.com/v1/chat/completions', {
         method: http.RequestMethod.POST,
         header: headers,
-        extraData: body
+        extraData: body,
+        expectDataType: http.HttpDataType.STRING
       });
 
       httpRequest.destroy();
@@ -869,9 +875,11 @@ export default struct WebTerminal {
           }
         }
       }
+      hilog.error(DOMAIN, 'WebTerminal', 'NVIDIA API HTTP %{public}d', response.responseCode);
       return '';
     } catch (e) {
-      hilog.error(DOMAIN, 'WebTerminal', 'NVIDIA API failed: %{public}s', JSON.stringify(e));
+      const errMsg = e instanceof Error ? e.message : JSON.stringify(e)
+      hilog.error(DOMAIN, 'WebTerminal', 'NVIDIA API failed: %{public}s', errMsg);
       return '';
     }
   }
