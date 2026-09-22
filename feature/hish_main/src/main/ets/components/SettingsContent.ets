@@ -4,6 +4,7 @@ import preference from '@ohos.data.preferences';
 import { picker } from '@kit.CoreFileKit';
 import fs from '@ohos.file.fs';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { http } from '@kit.NetworkKit';
 import appOption, { CursorShape, savePreference, UserFont } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
@@ -73,6 +74,7 @@ export default struct SettingsContent {
   @Watch('saveNvidiaApiKey') @StorageLink(appOption.nvidiaApiKey) nvidiaApiKey: string = ''
   @State apiKeyInput: string = ''
   @Watch('saveNvidiaModel') @StorageLink(appOption.nvidiaModel) nvidiaModel: string = 'meta/llama3.1-70b-instruct'
+  @State nvidiaModels: string[] = ['meta/llama3.1-70b-instruct']
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -379,21 +381,74 @@ export default struct SettingsContent {
   }
 
   @Builder
+  private buildRefreshButton() {
+    Button('刷新')
+      .fontSize(12)
+      .height(32)
+      .borderRadius(8)
+      .fontColor('#FFFFFF')
+      .backgroundColor('#A78BFA')
+      .onClick(() => {
+        this.fetchNvidiaModels()
+      })
+  }
+
+  @Builder
   private buildModelSelect() {
-    Select([
-      { value: 'meta/llama3.1-70b-instruct' },
-      { value: 'meta/llama3.1-8b-instruct' },
-      { value: 'nvidia/llama-3.1-nemotron-70b-instruct' },
-      { value: 'mistralai/mixtral-8x7b-instruct-v0.1' },
-      { value: 'google/gemma-2-9b-it' },
-      { value: 'microsoft/phi-3-medium-128k-instruct' },
-      { value: 'qwen/qwen2.5-7b-instruct' },
-    ])
+    Select(this.buildModelOptions())
       .value(this.nvidiaModel)
       .width('60%')
       .onSelect((_i: number, value: string) => {
         this.nvidiaModel = value
       })
+  }
+
+  private buildModelOptions(): SelectOption[] {
+    const options: SelectOption[] = []
+    for (let i = 0; i < this.nvidiaModels.length; i++) {
+      const opt: SelectOption = { value: this.nvidiaModels[i] }
+      options.push(opt)
+    }
+    return options
+  }
+
+  async fetchNvidiaModels() {
+    const apiKey = this.nvidiaApiKey
+    if (apiKey.length === 0) {
+      this.getUIContext().getPromptAction().showToast({ message: '请先填入 API Key' })
+      return
+    }
+    try {
+      const httpRequest = http.createHttp()
+      const headers: Record<string, string> = {
+        'Authorization': 'Bearer ' + apiKey
+      }
+      const response = await httpRequest.request('https://integrate.api.nvidia.com/v1/models', {
+        method: http.RequestMethod.GET,
+        header: headers
+      })
+      httpRequest.destroy()
+      if (response.responseCode === 200) {
+        const resultStr = typeof response.result === 'string' ? response.result as string : ''
+        if (resultStr.length > 0) {
+          const obj = JSON.parse(resultStr) as Record<string, Object>
+          const data = obj['data'] as Object[]
+          if (data && data.length > 0) {
+            const models: string[] = []
+            for (let i = 0; i < data.length; i++) {
+              const item = data[i] as Record<string, string>
+              models.push(item['id'])
+            }
+            this.nvidiaModels = models
+            this.getUIContext().getPromptAction().showToast({ message: `获取到 ${models.length} 个模型` })
+          }
+        }
+      } else {
+        this.getUIContext().getPromptAction().showToast({ message: '获取失败: HTTP ' + response.responseCode })
+      }
+    } catch (e) {
+      this.getUIContext().getPromptAction().showToast({ message: '获取模型列表失败' })
+    }
   }
 
   async saveNvidiaModel() {
@@ -597,9 +652,16 @@ export default struct SettingsContent {
             })
             SettingItem({
               title: 'AI 模型',
-              subTitle: '选择 NVIDIA NIM 模型',
+              subTitle: '点击下方按钮从 NVIDIA 拉取模型列表',
               content: () => {
                 this.buildModelSelect()
+              }
+            })
+            SettingItem({
+              title: '刷新模型列表',
+              subTitle: `当前 ${this.nvidiaModels.length} 个模型`,
+              content: () => {
+                this.buildRefreshButton()
               }
             })
           }
