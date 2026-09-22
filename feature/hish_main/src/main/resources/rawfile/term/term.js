@@ -567,13 +567,12 @@ exports.setBackgroundColor = (color) => {
     if (m) { r = parseInt(m[1],16); g = parseInt(m[2],16); b = parseInt(m[3],16); }
     else { m = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/); if (m) { r = +m[1]; g = +m[2]; b = +m[3]; } }
     var lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    if (lum > 0.5) {
-        term.options.theme.foreground = '#1a1a1a';
-        term.options.theme.cursor = '#1a1a1a';
-    } else {
-        term.options.theme.foreground = '#ffffff';
-        term.options.theme.cursor = '#ffffff';
-    }
+    var fg = lum > 0.5 ? '#1a1a1a' : '#ffffff';
+    // 重新设置整个 theme 对象，触发 xterm.js 重新渲染
+    term.options.theme = Object.assign({}, term.options.theme, {
+        foreground: fg,
+        cursor: fg
+    });
 };
 
 exports.setBackgroundImage = (dataUrl) => {
