@@ -34,6 +34,7 @@ class appOption {
   static terminalBackgroundImage = 'terminalBackgroundImage' // 背景图片文件名 (位于 filesDir/terminal_bg 下)
   static terminalBackgroundBlur = 'terminalBackgroundBlur'   // 背景高斯模糊半径 (px)
   static terminalFollowSystemColor = 'terminalFollowSystemColor'   // 终端背景色跟随系统颜色模式
+  static nvidiaApiKey = 'nvidiaApiKey'   // NVIDIA AI API Key
   static terminalUserFonts = 'terminalUserFonts'   // 用户上传字体列表 (JSON: UserFont[])
   static appTempDir = 'appTempDir'
   static appFilesDir = 'appFilesDir'
