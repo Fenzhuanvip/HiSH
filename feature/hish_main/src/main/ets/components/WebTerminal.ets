@@ -185,12 +185,12 @@ export default struct WebTerminal {
       }
     }] : []
     const regularOptions: MenuElement[] = [{
-      value: '码道 CodeArts',
+      value: '码道 codearts',
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/AiWorkbenchPage' })
     }, {
       value: 'GitHub',
-      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.arrow_clockwise')).fontSize($r('sys.float.Title_S')),
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.folder')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/GitHubPage' })
     }, {
       value: $r('app.string.menu_emulator_management'),
