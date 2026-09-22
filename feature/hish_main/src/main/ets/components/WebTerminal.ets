@@ -6,7 +6,7 @@ import { webview } from '@kit.ArkWeb';
 import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
 import appOption, { CursorShape, savePreference, UserFont, UserFontData } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
-import { SymbolGlyphModifier, mediaquery } from '@kit.ArkUI';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import fileToDataUrl from '../lib/fileToDataUrl';
 import { ImmersiveButtonModifier, ImmersiveToggleModifier } from '../lib/immersiveButton';
@@ -52,21 +52,11 @@ export default struct WebTerminal {
   @State keyFontColor: string = '#ffffff'
   @State showAIInput: boolean = false
   @State aiInputText: string = ''
+  @State showGitHubWebView: boolean = false
+  githubWebController: webview.WebviewController = new webview.WebviewController()
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
-  private colorModeListener?: mediaquery.MediaQueryListener = undefined
 
-  @Builder
-  contextMenu(webController: WebviewController) {
-    Flex({
-      direction: FlexDirection.Column
-    }) {
-      MenuItem({ content: $r('app.string.copy_text') })
-        .width('100%')
-        .onClick(async () => {
-          const selection = await webController.runJavaScript('exports.copy()')
-          if (selection !== '""') {
-            let text: string = JSON.parse(selection);
             const board = pasteboard.getSystemPasteboard()
             const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text)
             board.setData(pasteData)
@@ -84,7 +74,7 @@ export default struct WebTerminal {
           }
         })
         .fontColor(this.keyFontColor)
-        .backgroundColor('#1AF472B6')
+        .backgroundColor('#1AA78BFA')
         .padding({ left: 12, right: 12 })
         .width('100%')
       MenuItem({ content: $r('app.string.menu_clear_screen') })
@@ -109,7 +99,7 @@ export default struct WebTerminal {
       .fontColor(this.keyFontColor)
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
-      .backgroundColor('#1AF472B6')
+      .backgroundColor('#1AA78BFA')
       .attributeModifier(this.immersiveButton)
       .onClick(() => {
         if (this.applicationMode && appCode) {
@@ -196,13 +186,9 @@ export default struct WebTerminal {
     }, {
       value: 'GitHub',
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.folder')).fontSize($r('sys.float.Title_S')),
-      action: async () => {
-        hilog.info(DOMAIN, 'WebTerminal', 'GitHub menu clicked')
-        this.getUIContext().getPromptAction().showToast({ message: 'Opening GitHub...' })
-        try {
-          await this.getUIContext().getRouter().pushUrl({ url: 'pages/GitHubPage' })
-          hilog.info(DOMAIN, 'WebTerminal', 'GitHub pushUrl succeeded')
-        } catch (e) {
+      action: () => {
+        this.showGitHubWebView = true
+      } catch (e) {
           hilog.error(DOMAIN, 'WebTerminal', 'GitHub pushUrl failed: %{public}s', JSON.stringify(e))
           this.getUIContext().getPromptAction().showToast({ message: 'Route failed: ' + JSON.stringify(e) })
         }
@@ -230,10 +216,10 @@ export default struct WebTerminal {
       .width(VKeyWidth)
       .borderRadius(VKeyRadius)
       .fontSize(VKeyFontSize)
-      .fontColor('#F472B6')
+      .fontColor('#A78BFA')
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
-      .backgroundColor('#33F472B6')
+      .backgroundColor('#33A78BFA')
       .onClick(() => {
         this.showAIInput = !this.showAIInput
         if (!this.showAIInput) {
@@ -258,6 +244,7 @@ export default struct WebTerminal {
   }
 
   build() {
+    Stack() {
     Column() {
       Web({
         src: $rawfile('term/term.html'),
@@ -289,7 +276,7 @@ export default struct WebTerminal {
           }
         }`
         })
-        .backgroundColor('#1A1B2E')
+        .backgroundColor('#0D0D12')
         .layoutWeight(1)
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
       if (this.showAIInput) {
@@ -340,6 +327,27 @@ export default struct WebTerminal {
         } else {
           this.buildShowVirtualKeysButton()
         }
+      }
+    }
+    .height('100%')
+
+      if (this.showGitHubWebView) {
+        Column() {
+          Row() {
+            Button('\u2190 \u8FD4\u56DE', { buttonStyle: ButtonStyleMode.TEXTUAL })
+              .fontSize(16)
+              .fontColor('#A78BFA')
+              .onClick(() => { this.showGitHubWebView = false })
+            Text('GitHub Actions').fontSize(16).fontColor('#E0E0E0').margin({ left: 12 })
+          }
+          .width('100%').height(48).backgroundColor('#0D0D12').padding({ left: 12, right: 12 })
+
+          Web({ src: 'https://github.com/Fenzhuanvip/HiSH/actions', controller: this.githubWebController })
+            .width('100%').height('100%')
+            .javaScriptAccess(true).domStorageAccess(true)
+            .imageAccess(true).onlineImageAccess(true)
+        }
+        .width('100%').height('100%')
       }
     }
     .height('100%')
@@ -663,14 +671,8 @@ export default struct WebTerminal {
   }
 
   private computeKeyFontColor(): string {
-    const bg = this.termBgColor
-    if (bg.startsWith('#') && bg.length >= 7) {
-      const r = parseInt(bg.substring(1, 3), 16)
-      const g = parseInt(bg.substring(3, 5), 16)
-      const b = parseInt(bg.substring(5, 7), 16)
-      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-      return lum > 0.5 ? '#1a1a1a' : '#ffffff'
-    }
+    return '#E0E0E0'
+  }
     return '#ffffff'
   }
 
@@ -779,18 +781,7 @@ export default struct WebTerminal {
   }
 
   aboutToAppear() {
-    try {
-      const mq = this.getUIContext().getMediaQuery()
-      const listener = mq.matchMediaSync('(prefers-color-scheme: dark)')
-      this.colorModeListener = listener
-      const applySystemColor = (): void => {
-        const followSystem = AppStorage.get<boolean>(appOption.terminalFollowSystemColor) ?? true
-        if (!followSystem) return
-        const hasBgImage = (AppStorage.get<string>(appOption.terminalBackgroundImage) ?? '').length > 0
-        if (hasBgImage) return
-        if (listener.matches) {
-          AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#1A1B2E')
-        } else {
+  } else {
           AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#FDF7FA')
         }
         hilog.info(DOMAIN, 'WebTerminal', 'System color mode: %{public}s', listener.matches ? 'dark' : 'light')
