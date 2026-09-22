@@ -72,6 +72,7 @@ export default struct SettingsContent {
   // NVIDIA AI API Key
   @Watch('saveNvidiaApiKey') @StorageLink(appOption.nvidiaApiKey) nvidiaApiKey: string = ''
   @State apiKeyInput: string = ''
+  @Watch('saveNvidiaModel') @StorageLink(appOption.nvidiaModel) nvidiaModel: string = 'meta/llama3.1-70b-instruct'
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -378,6 +379,28 @@ export default struct SettingsContent {
   }
 
   @Builder
+  private buildModelSelect() {
+    Select([
+      { value: 'meta/llama3.1-70b-instruct' },
+      { value: 'meta/llama3.1-8b-instruct' },
+      { value: 'nvidia/llama-3.1-nemotron-70b-instruct' },
+      { value: 'mistralai/mixtral-8x7b-instruct-v0.1' },
+      { value: 'google/gemma-2-9b-it' },
+      { value: 'microsoft/phi-3-medium-128k-instruct' },
+      { value: 'qwen/qwen2.5-7b-instruct' },
+    ])
+      .value(this.nvidiaModel)
+      .width('60%')
+      .onSelect((_i: number, value: string) => {
+        this.nvidiaModel = value
+      })
+  }
+
+  async saveNvidiaModel() {
+    await savePreference(appOption.nvidiaModel, this.nvidiaModel, this.getUIContext())
+  }
+
+  @Builder
   private buildTerminalCursorShape() {
     Select(cursorShapeOptions)
       .width(160)
@@ -570,6 +593,13 @@ export default struct SettingsContent {
               subTitle: '在 build.nvidia.com 生成，用于 AI 自然语言转命令',
               content: () => {
                 this.buildApiKeyInput()
+              }
+            })
+            SettingItem({
+              title: 'AI 模型',
+              subTitle: '选择 NVIDIA NIM 模型',
+              content: () => {
+                this.buildModelSelect()
               }
             })
           }
