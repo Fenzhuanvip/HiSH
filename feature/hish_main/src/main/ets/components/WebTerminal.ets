@@ -57,6 +57,17 @@ export default struct WebTerminal {
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
 
+  @Builder
+  contextMenu(webController: WebviewController) {
+    Flex({
+      direction: FlexDirection.Column
+    }) {
+      MenuItem({ content: $r('app.string.copy_text') })
+        .width('100%')
+        .onClick(async () => {
+          const selection = await webController.runJavaScript('exports.copy()')
+          if (selection !== '""') {
+            let text: string = JSON.parse(selection);
             const board = pasteboard.getSystemPasteboard()
             const pasteData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text)
             board.setData(pasteData)
@@ -74,7 +85,7 @@ export default struct WebTerminal {
           }
         })
         .fontColor(this.keyFontColor)
-        .backgroundColor('#1AA78BFA')
+        .backgroundColor('#1AF472B6')
         .padding({ left: 12, right: 12 })
         .width('100%')
       MenuItem({ content: $r('app.string.menu_clear_screen') })
@@ -99,7 +110,7 @@ export default struct WebTerminal {
       .fontColor(this.keyFontColor)
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
-      .backgroundColor('#1AA78BFA')
+      .backgroundColor('#1AF472B6')
       .attributeModifier(this.immersiveButton)
       .onClick(() => {
         if (this.applicationMode && appCode) {
@@ -188,10 +199,6 @@ export default struct WebTerminal {
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.folder')).fontSize($r('sys.float.Title_S')),
       action: () => {
         this.showGitHubWebView = true
-      } catch (e) {
-          hilog.error(DOMAIN, 'WebTerminal', 'GitHub pushUrl failed: %{public}s', JSON.stringify(e))
-          this.getUIContext().getPromptAction().showToast({ message: 'Route failed: ' + JSON.stringify(e) })
-        }
       }
     }, {
       value: $r('app.string.menu_emulator_management'),
@@ -216,10 +223,10 @@ export default struct WebTerminal {
       .width(VKeyWidth)
       .borderRadius(VKeyRadius)
       .fontSize(VKeyFontSize)
-      .fontColor('#A78BFA')
+      .fontColor('#F472B6')
       .margin(VKeyMargin)
       .padding({ left: VKeyPadding, right: VKeyPadding })
-      .backgroundColor('#33A78BFA')
+      .backgroundColor('#33F472B6')
       .onClick(() => {
         this.showAIInput = !this.showAIInput
         if (!this.showAIInput) {
@@ -245,7 +252,7 @@ export default struct WebTerminal {
 
   build() {
     Stack() {
-    Column() {
+      Column() {
       Web({
         src: $rawfile('term/term.html'),
         controller: this.webviewController
@@ -276,7 +283,7 @@ export default struct WebTerminal {
           }
         }`
         })
-        .backgroundColor('#0D0D12')
+        .backgroundColor('#1A1B2E')
         .layoutWeight(1)
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
       if (this.showAIInput) {
@@ -286,7 +293,7 @@ export default struct WebTerminal {
             .height(36)
             .fontSize(14)
             .borderRadius(10)
-            .backgroundColor('#1A1A2E')
+            .backgroundColor('#F5F5FA')
             .onChange((value: string) => {
               this.aiInputText = value
             })
@@ -299,7 +306,7 @@ export default struct WebTerminal {
             .borderRadius(10)
             .fontSize(18)
             .fontColor('#FFFFFF')
-            .backgroundColor('#A78BFA')
+            .backgroundColor('#F472B6')
             .margin({ left: 6 })
             .onClick(() => {
               this.executeAICommand()
@@ -319,7 +326,7 @@ export default struct WebTerminal {
         }
         .width('100%')
         .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-        .backgroundColor('#0D0D12')
+        .backgroundColor('#1A1B2E')
       }
       if (this.virtKeyEnabled) {
         if (this.showVirtKey) {
@@ -328,26 +335,36 @@ export default struct WebTerminal {
           this.buildShowVirtualKeysButton()
         }
       }
-    }
-    .height('100%')
+      }
+      .height('100%')
 
       if (this.showGitHubWebView) {
         Column() {
           Row() {
-            Button('\u2190 \u8FD4\u56DE', { buttonStyle: ButtonStyleMode.TEXTUAL })
-              .fontSize(16)
-              .fontColor('#A78BFA')
-              .onClick(() => { this.showGitHubWebView = false })
-            Text('GitHub Actions').fontSize(16).fontColor('#E0E0E0').margin({ left: 12 })
+            Button('✕ 关闭')
+              .height(36)
+              .fontSize(14)
+              .fontColor('#E0E0E0')
+              .backgroundColor('#A78BFA')
+              .borderRadius(8)
+              .padding({ left: 12, right: 12 })
+              .onClick(() => {
+                this.showGitHubWebView = false
+              })
+            Blank()
           }
-          .width('100%').height(48).backgroundColor('#0D0D12').padding({ left: 12, right: 12 })
+          .width('100%')
+          .height(48)
+          .padding({ left: 12, right: 12 })
+          .backgroundColor('#0D0D12')
 
-          Web({ src: 'https://github.com/Fenzhuanvip/HiSH/actions', controller: this.githubWebController })
-            .width('100%').height('100%')
-            .javaScriptAccess(true).domStorageAccess(true)
-            .imageAccess(true).onlineImageAccess(true)
+          Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
+            .layoutWeight(1)
+            .width('100%')
         }
-        .width('100%').height('100%')
+        .height('100%')
+        .width('100%')
+        .backgroundColor('#0D0D12')
       }
     }
     .height('100%')
@@ -671,8 +688,15 @@ export default struct WebTerminal {
   }
 
   private computeKeyFontColor(): string {
-    return '#E0E0E0'
-  }
+    const bg = this.termBgColor
+    if (bg.startsWith('#') && bg.length >= 7) {
+      const r = parseInt(bg.substring(1, 3), 16)
+      const g = parseInt(bg.substring(3, 5), 16)
+      const b = parseInt(bg.substring(5, 7), 16)
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+      return lum > 0.5 ? '#1a1a1a' : '#ffffff'
+    }
+    return '#ffffff'
   }
 
   onBgColorChanged() {
@@ -780,6 +804,9 @@ export default struct WebTerminal {
   }
 
   aboutToAppear() {
+    // 深色模式由 EntryAbility 强制设置，无需 mediaquery 跟随系统
+  }
+
+  aboutToDisappear() {
   }
 }
-
