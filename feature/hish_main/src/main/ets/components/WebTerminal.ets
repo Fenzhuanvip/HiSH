@@ -217,6 +217,15 @@ export default struct WebTerminal {
         this.showGitHubWebView = true
       }
     }, {
+      value: 'AI 助手',
+      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.sparkles')).fontSize($r('sys.float.Title_S')),
+      action: () => {
+        this.showAIInput = !this.showAIInput
+        if (!this.showAIInput) {
+          this.aiInputText = ''
+        }
+      }
+    }, {
       value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })
@@ -809,7 +818,7 @@ export default struct WebTerminal {
       const httpRequest = http.createHttp();
       const apiKey = AppStorage.get<string>(appOption.nvidiaApiKey) ?? ''
       if (apiKey.length === 0) {
-        return '请先在设置中填入 NVIDIA API Key'
+        return ''
       }
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
@@ -886,8 +895,9 @@ export default struct WebTerminal {
         duration: 3000
       })
     } else {
+      const apiKey = AppStorage.get<string>(appOption.nvidiaApiKey) ?? ''
       this.getUIContext().getPromptAction().showToast({
-        message: 'AI 请求失败，请重试',
+        message: apiKey.length === 0 ? '请先在设置中填入 NVIDIA API Key' : 'AI 请求失败，请重试',
         duration: 3000
       })
     }
