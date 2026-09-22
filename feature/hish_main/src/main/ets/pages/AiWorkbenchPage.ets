@@ -65,7 +65,7 @@ export struct AiWorkbenchPage {
   private startPollBridge(): void {
     this.pollTimer = setInterval(() => {
       try { this.webController.runJavaScript(EXEC_SCRIPT) } catch (e) {}
-    }, 2000)
+    }, 3000)
   }
 
   sendCommand(cmd: string): void {
