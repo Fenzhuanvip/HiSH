@@ -5,6 +5,7 @@ import napi from 'libhish_main.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
 import { http } from '@kit.NetworkKit';
+import fs from '@ohos.file.fs';
 import appOption, { CursorShape, savePreference, UserFont, UserFontData } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier, mediaquery } from '@kit.ArkUI';
@@ -377,6 +378,13 @@ export default struct WebTerminal {
           Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
             .layoutWeight(1)
             .width('100%')
+            .onDownloadStart((event) => {
+              if (event) {
+                const url = event.url
+                const filename = event.contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ?? url.split('/').pop() ?? 'download'
+                this.downloadFile(url, filename)
+              }
+            })
         }
         .height('100%')
         .width('100%')
@@ -881,6 +889,58 @@ export default struct WebTerminal {
     } else {
       this.getUIContext().getPromptAction().showToast({
         message: 'AI 请求失败，请重试',
+        duration: 3000
+      })
+    }
+  }
+
+  private async downloadFile(url: string, filename: string): Promise<void> {
+    try {
+      const sharedHost = AppStorage.get<string>(appOption.sharedHost) ?? ''
+      if (sharedHost.length === 0) {
+        this.getUIContext().getPromptAction().showToast({
+          message: '请先设置共享文件夹',
+          duration: 3000
+        })
+        return
+      }
+
+      const savePath = sharedHost + filename
+      this.getUIContext().getPromptAction().showToast({
+        message: '开始下载: ' + filename,
+        duration: 2000
+      })
+
+      const httpRequest = http.createHttp()
+      const headers: Record<string, string> = {
+        
+      }
+
+      const response = await httpRequest.request(url, {
+        method: http.RequestMethod.GET,
+        header: headers,
+        expectDataType: http.HttpDataType.ARRAY_BUFFER
+      })
+
+      if (response.responseCode === 200) {
+        const arrayBuffer = response.result as ArrayBuffer
+        fs.writeFileSync(savePath, arrayBuffer)
+        this.getUIContext().getPromptAction().showToast({
+          message: '下载完成: ' + savePath,
+          duration: 3000
+        })
+      } else {
+        this.getUIContext().getPromptAction().showToast({
+          message: '下载失败: HTTP ' + response.responseCode,
+          duration: 3000
+        })
+      }
+
+      httpRequest.destroy()
+    } catch (e) {
+      hilog.error(DOMAIN, 'WebTerminal', 'download failed: %{public}s', JSON.stringify(e))
+      this.getUIContext().getPromptAction().showToast({
+        message: '下载异常',
         duration: 3000
       })
     }
