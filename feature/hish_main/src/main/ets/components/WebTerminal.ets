@@ -50,6 +50,8 @@ export default struct WebTerminal {
   resizeTimeout?: number = undefined
   applicationMode: boolean = false
   @State keyFontColor: string = '#ffffff'
+  @State showAIInput: boolean = false
+  @State aiInputText: string = ''
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
   private colorModeListener?: mediaquery.MediaQueryListener = undefined
@@ -222,6 +224,25 @@ export default struct WebTerminal {
   }
 
   @Builder
+  buildAIButton() {
+    Button('AI', { buttonStyle: ButtonStyleMode.TEXTUAL })
+      .height(VKeyHeight)
+      .width(VKeyWidth)
+      .borderRadius(VKeyRadius)
+      .fontSize(VKeyFontSize)
+      .fontColor('#F472B6')
+      .margin(VKeyMargin)
+      .padding({ left: VKeyPadding, right: VKeyPadding })
+      .backgroundColor('#33F472B6')
+      .onClick(() => {
+        this.showAIInput = !this.showAIInput
+        if (!this.showAIInput) {
+          this.aiInputText = ''
+        }
+      })
+  }
+
+  @Builder
   hideVKeyButton() {
     Button('▼', { buttonStyle: ButtonStyleMode.TEXTUAL })
       .height(VKeyHeight)
@@ -271,6 +292,48 @@ export default struct WebTerminal {
         .backgroundColor('#1A1B2E')
         .layoutWeight(1)
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
+      if (this.showAIInput) {
+        Row() {
+          TextInput({ text: this.aiInputText, placeholder: '输入你想做的事，如：查看磁盘空间' })
+            .layoutWeight(1)
+            .height(36)
+            .fontSize(14)
+            .borderRadius(10)
+            .backgroundColor('#F5F5FA')
+            .onChange((value: string) => {
+              this.aiInputText = value
+            })
+            .onSubmit(() => {
+              this.executeAICommand()
+            })
+          Button('✓')
+            .height(36)
+            .width(36)
+            .borderRadius(10)
+            .fontSize(18)
+            .fontColor('#FFFFFF')
+            .backgroundColor('#F472B6')
+            .margin({ left: 6 })
+            .onClick(() => {
+              this.executeAICommand()
+            })
+          Button('✗')
+            .height(36)
+            .width(36)
+            .borderRadius(10)
+            .fontSize(16)
+            .fontColor('#9B9BA8')
+            .backgroundColor('#252637')
+            .margin({ left: 6 })
+            .onClick(() => {
+              this.showAIInput = false
+              this.aiInputText = ''
+            })
+        }
+        .width('100%')
+        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
+        .backgroundColor('#1A1B2E')
+      }
       if (this.virtKeyEnabled) {
         if (this.showVirtKey) {
           this.buildVirtualKeys()
@@ -345,6 +408,7 @@ export default struct WebTerminal {
           this.buildVKey('↑', NormalKeySequences.UP, NormalKeySequences.UP_APP);
           this.buildVKey('END', NormalKeySequences.END);
 
+          this.buildAIButton();
           this.settingsButton();
         }
         .margin({ left: 5, right: 5 })
@@ -650,6 +714,67 @@ export default struct WebTerminal {
       AppStorage.setOrCreate(appOption.availableFontFamilies, fonts);
     } catch (e) {
       hilog.error(DOMAIN, 'WebTerminal', 'Failed to parse available fonts: %{public}s', JSON.stringify(e));
+    }
+  }
+
+  private matchAICommand(input: string): string {
+    const lower = input.toLowerCase().trim()
+    if (lower.length === 0) return ''
+    const rules: Array<[string, string]> = [
+      ['磁盘', 'df -h'], ['disk', 'df -h'], ['存储', 'df -h'],
+      ['内存', 'free -h'], ['memory', 'free -h'], ['ram', 'free -h'],
+      ['进程', 'ps aux'], ['process', 'ps aux'], ['任务', 'top -n 1'],
+      ['网络', 'ip addr'], ['network', 'ip addr'],
+      ['端口', 'ss -tlnp'], ['port', 'ss -tlnp'],
+      ['系统信息', 'uname -a'], ['system', 'uname -a'], ['内核', 'uname -r'],
+      ['用户', 'whoami'], ['user', 'whoami'], ['登录', 'who'],
+      ['目录', 'pwd'], ['路径', 'pwd'], ['path', 'pwd'],
+      ['日期', 'date'], ['时间', 'date'], ['date', 'date'], ['time', 'date'],
+      ['日历', 'cal'], ['calendar', 'cal'],
+      ['cpu', 'lscpu'], ['处理器', 'lscpu'],
+      ['列出文件', 'ls -la'], ['文件列表', 'ls -la'], ['list', 'ls -la'],
+      ['查看文件', 'ls -la'], ['ls', 'ls -la'],
+      ['更新系统', 'apt update && apt upgrade -y'], ['update', 'apt update'],
+      ['安装', 'apt install -y'], ['install', 'apt install -y'],
+      ['搜索包', 'apt search'], ['search', 'apt search'],
+      ['下载', 'wget'], ['download', 'wget'],
+      ['ping', 'ping -c 4 google.com'], ['连通', 'ping -c 4 8.8.8.8'],
+      ['公网ip', 'curl -s ifconfig.me'], ['公网', 'curl -s ifconfig.me'],
+      ['清理屏幕', 'clear'], ['清屏', 'clear'], ['clear', 'clear'],
+      ['帮助', 'help'], ['help', 'help'],
+      ['git状态', 'git status'], ['git status', 'git status'],
+      ['git日志', 'git log --oneline -10'], ['git log', 'git log --oneline -10'],
+      ['git分支', 'git branch -a'], ['git branch', 'git branch -a'],
+      ['重启', 'sudo reboot'], ['关机', 'sudo poweroff'],
+      ['退出', 'exit'], ['exit', 'exit'],
+      ['环境变量', 'env'], ['env', 'env'],
+      ['磁盘占用', 'du -sh *'], ['空间', 'du -sh *'],
+      ['查看历史', 'history'], ['history', 'history'],
+      ['杀死', 'killall'], ['kill', 'killall'],
+    ]
+    for (const [key, cmd] of rules) {
+      if (lower.includes(key)) {
+        return cmd
+      }
+    }
+    return ''
+  }
+
+  private executeAICommand() {
+    const cmd = this.matchAICommand(this.aiInputText)
+    if (cmd.length > 0) {
+      this.sendInput(cmd + '\n')
+      this.showAIInput = false
+      this.aiInputText = ''
+      this.getUIContext().getPromptAction().showToast({
+        message: 'AI: ' + cmd,
+        duration: 2000
+      })
+    } else {
+      this.getUIContext().getPromptAction().showToast({
+        message: '无法识别，试试：查看磁盘、查看内存、列出文件、查看进程、查看网络、git状态...',
+        duration: 5000
+      })
     }
   }
 
