@@ -304,7 +304,7 @@ export default struct SettingsContent {
       .select(this.displayStatusBar)
       .onChange((value: boolean) => {
         AppStorage.setOrCreate(appOption.displayStatusBar, value)
-        AppStorage.setOrCreate(appOption.showVirtKey, !value)
+        AppStorage.setOrCreate(appOption.terminalFollowSystemColor, value)
         this.showDisplayStatusBarToast(value)
       })
   }
@@ -540,15 +540,15 @@ export default struct SettingsContent {
               AppStorage.setOrCreate(appOption.runningInBackground, !this.runningInBackground)
             })
             SettingItem({
-              title: '全屏模式',
-              subTitle: '隐藏虚拟按键，终端占满屏幕',
+              title: '跟随系统颜色',
+              subTitle: '终端背景色跟随系统深色/浅色模式',
               content: () => {
                 this.setDisplayStatusBar()
               }
             }).onClick(() => {
               const value: boolean = !this.displayStatusBar;
               AppStorage.setOrCreate(appOption.displayStatusBar, value)
-              AppStorage.setOrCreate(appOption.showVirtKey, !value)
+              AppStorage.setOrCreate(appOption.terminalFollowSystemColor, value)
               this.showDisplayStatusBarToast(value)
             })
           }
@@ -783,7 +783,7 @@ export default struct SettingsContent {
 
   showDisplayStatusBarToast(value: boolean) {
     this.getUIContext().getPromptAction().showToast({
-      message: value ? '全屏模式已开启' : '全屏模式已关闭',
+      message: value ? '已开启跟随系统颜色' : '已关闭跟随系统颜色',
       duration: 3000
     })
   }
