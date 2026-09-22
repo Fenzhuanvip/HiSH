@@ -356,15 +356,9 @@ export default struct WebTerminal {
       .height('100%')
 
       if (this.showGitHubWebView) {
-        Column() {
-          Row() {
-            Text('→ 滑动关闭')
-              .fontSize(12)
-              .fontColor('#A78BFA')
-              .opacity(0.6)
-          }
+        Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
+          .height('100%')
           .width('100%')
-          .height(32)
           .backgroundColor('#0D0D12')
           .gesture(
             PanGesture()
@@ -374,21 +368,13 @@ export default struct WebTerminal {
                 }
               })
           )
-
-          Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
-            .layoutWeight(1)
-            .width('100%')
-            .onDownloadStart((event) => {
-              if (event) {
-                const url = event.url
-                const filename = event.contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ?? url.split('/').pop() ?? 'download'
-                this.downloadFile(url, filename)
-              }
-            })
-        }
-        .height('100%')
-        .width('100%')
-        .backgroundColor('#0D0D12')
+          .onDownloadStart((event) => {
+            if (event) {
+              const url = event.url
+              const filename = event.contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ?? url.split('/').pop() ?? 'download'
+              this.downloadFile(url, filename)
+            }
+          })
       }
     }
     .height('100%')
