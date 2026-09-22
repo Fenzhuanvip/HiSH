@@ -2,55 +2,39 @@
   "color": [
     {
       "name": "start_window_background",
-      "value": "#1A1B2E"
+      "value": "#0D0D12"
     },
     {
       "name": "setting_block_background",
-      "value": "#0CFFFFFF"
+      "value": "#1A1A2E"
     },
     {
       "name": "setting_block_background_2",
-      "value": "#0DFFFFFF"
+      "value": "#1A1A2E"
     },
     {
-      "name": "sakura_primary",
-      "value": "#F472B6"
-    },
-    {
-      "name": "sakura_primary_light",
-      "value": "#FBCFE8"
-    },
-    {
-      "name": "sakura_primary_dark",
-      "value": "#EC4899"
-    },
-    {
-      "name": "sakura_secondary",
+      "name": "purple_primary",
       "value": "#A78BFA"
     },
     {
-      "name": "sakura_bg_dark",
-      "value": "#1A1B2E"
+      "name": "purple_primary_light",
+      "value": "#C4B5FD"
     },
     {
-      "name": "sakura_bg_light",
-      "value": "#FDF7FA"
+      "name": "purple_primary_dark",
+      "value": "#7C3AED"
     },
     {
-      "name": "sakura_surface_dark",
-      "value": "#252637"
+      "name": "dark_bg",
+      "value": "#0D0D12"
     },
     {
-      "name": "sakura_surface_light",
-      "value": "#FFFFFF"
+      "name": "dark_surface",
+      "value": "#1A1A2E"
     },
     {
-      "name": "sakura_foreground_dark",
-      "value": "#E2E2E9"
-    },
-    {
-      "name": "sakura_foreground_light",
-      "value": "#4A4A5C"
+      "name": "dark_foreground",
+      "value": "#E0E0E0"
     }
   ]
 }
