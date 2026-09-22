@@ -552,17 +552,6 @@ export default struct SettingsContent {
           }
           .attributeModifier(this.blockStyle)
 
-          BlockTitle({ content: 'GitCode（atomgit）' })
-          Column() {
-            SettingItem({
-              title: 'Personal Access Token',
-              subTitle: 'atomgit.com → 设置 → 个人访问令牌',
-              content: () => {
-                this.buildTokenInput()
-              }
-            })
-          }
-          .attributeModifier(this.blockStyle)
 
         }
         .margin(10)
