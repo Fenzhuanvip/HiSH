@@ -924,7 +924,9 @@ export default struct WebTerminal {
 
       if (response.responseCode === 200) {
         const arrayBuffer = response.result as ArrayBuffer
-        fs.writeFileSync(savePath, arrayBuffer)
+        const file = fs.openSync(savePath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY);
+        fs.writeSync(file.fd, arrayBuffer);
+        fs.closeSync(file.fd)
         this.getUIContext().getPromptAction().showToast({
           message: '下载完成: ' + savePath,
           duration: 3000
