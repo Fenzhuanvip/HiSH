@@ -304,6 +304,7 @@ export default struct SettingsContent {
       .select(this.displayStatusBar)
       .onChange((value: boolean) => {
         AppStorage.setOrCreate(appOption.displayStatusBar, value)
+        AppStorage.setOrCreate(appOption.showVirtKey, !value)
         this.showDisplayStatusBarToast(value)
       })
   }
@@ -539,14 +540,15 @@ export default struct SettingsContent {
               AppStorage.setOrCreate(appOption.runningInBackground, !this.runningInBackground)
             })
             SettingItem({
-              title: $r('app.string.display_status_bar'),
-              subTitle: $r('app.string.guest_status_bar_desc'),
+              title: '全屏模式',
+              subTitle: '隐藏虚拟按键，终端占满屏幕',
               content: () => {
                 this.setDisplayStatusBar()
               }
             }).onClick(() => {
               const value: boolean = !this.displayStatusBar;
               AppStorage.setOrCreate(appOption.displayStatusBar, value)
+              AppStorage.setOrCreate(appOption.showVirtKey, !value)
               this.showDisplayStatusBarToast(value)
             })
           }
@@ -780,12 +782,10 @@ export default struct SettingsContent {
   }
 
   showDisplayStatusBarToast(value: boolean) {
-    if(value) {
-      this.getUIContext().getPromptAction().showToast({
-        message: $r('app.string.guest_status_bar_toast'),
-        duration: 5000
-      })
-    }
+    this.getUIContext().getPromptAction().showToast({
+      message: value ? '全屏模式已开启' : '全屏模式已关闭',
+      duration: 3000
+    })
   }
 
   async saveVncEnabled() {
