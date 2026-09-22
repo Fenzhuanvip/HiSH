@@ -28,6 +28,19 @@ const VKeyWidth = VKeyMetrics.width;
 const VKeyFontSize = VKeyMetrics.fontSize;
 const VKeyRadius = VKeyMetrics.radius;
 
+interface NvidiaMessage {
+  role: string
+  content: string
+}
+
+interface NvidiaRequestBody {
+  model: string
+  messages: NvidiaMessage[]
+  max_tokens: number
+  temperature: number
+  stream: boolean
+}
+
 @Component
 export default struct WebTerminal {
   @Require virtKeyEnabled: boolean = true
@@ -796,16 +809,17 @@ export default struct WebTerminal {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer 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'
       };
-      const body = JSON.stringify({
+      const systemMsg: NvidiaMessage = { role: 'system', content: 'You are a Linux terminal assistant. Convert the user natural language request to a shell command. Reply with ONLY the shell command, no explanation, no markdown, no backticks.' };
+      const userMsg: NvidiaMessage = { role: 'user', content: userInput };
+      const messages: NvidiaMessage[] = [systemMsg, userMsg];
+      const requestBody: NvidiaRequestBody = {
         model: 'meta/llama3.1-70b-instruct',
-        messages: [
-          { role: 'system', content: 'You are a Linux terminal assistant. Convert the user natural language request to a shell command. Reply with ONLY the shell command, no explanation, no markdown, no backticks.' },
-          { role: 'user', content: userInput }
-        ],
+        messages: messages,
         max_tokens: 256,
         temperature: 0.7,
         stream: false
-      });
+      };
+      const body = JSON.stringify(requestBody);
 
       const response = await httpRequest.request('https://integrate.api.nvidia.com/v1/chat/completions', {
         method: http.RequestMethod.POST,
