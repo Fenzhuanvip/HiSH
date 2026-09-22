@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -31,19 +33,8 @@ jobs:
           LIBS_DIR="feature/hish_main/libs"
           mkdir -p "$VM_DIR" "$LIBS_DIR"
 
-          # 从 atomgit resources 分支拉取构建资源
-          if git clone --branch resources --depth 1 --single-branch \
-            "https://ff-518:fNCrAW6XzAx_P-19_RymJr7t@atomgit.com/ff-518/HiSH.git" /tmp/resources-repo; then
-            if [ -f /tmp/resources-repo/resources/libvncserver.tar.gz ]; then
-              tar xzf /tmp/resources-repo/resources/libvncserver.tar.gz \
-                -C feature/hish_main/src/main/cpp/
-            fi
-            if [ -f /tmp/resources-repo/resources/libs.zip ]; then
-              unzip -qo /tmp/resources-repo/resources/libs.zip -d "$LIBS_DIR/"
-            fi
-            cp -f /tmp/resources-repo/resources/kernel_aarch64 "$VM_DIR/" 2>/dev/null || true
-            cp -f /tmp/resources-repo/resources/rootfs_aarch64.qcow2 "$VM_DIR/" 2>/dev/null || true
-          fi
+          # libvncserver 通过 git submodule 获取（checkout 时已初始化）
+          # kernel/rootfs/libs 从 GitHub releases 下载（见下方 fallback）
 
           # 备用下载源
           if [ ! -f "$VM_DIR/kernel_aarch64" ]; then
