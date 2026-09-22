@@ -308,7 +308,7 @@ export default struct WebTerminal {
           }
         }`
         })
-        .backgroundColor('#1A1B2E')
+        .backgroundColor('#000000')
         .layoutWeight(1)
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
       if (this.showAIInput) {
@@ -457,11 +457,10 @@ export default struct WebTerminal {
           Row().layoutWeight(1);
 
           this.buildVKey('PGUP', NormalKeySequences.PGUP);
-          this.buildVKey('HOME', NormalKeySequences.HOME);
+          this.toggleShiftKey('SHIFT', () => this.toggleShift());
           this.buildVKey('↑', NormalKeySequences.UP, NormalKeySequences.UP_APP);
-          this.buildVKey('END', NormalKeySequences.END);
+          this.buildVKey('↵', '\n', '\n');
 
-          this.buildAIButton();
           this.settingsButton();
         }
         .margin({ left: 5, right: 5 })
@@ -867,18 +866,6 @@ export default struct WebTerminal {
   private async executeAICommand() {
     const userInput = this.aiInputText
     if (userInput.length === 0) return
-
-    const localCmd = this.matchAICommand(userInput)
-    if (localCmd.length > 0) {
-      this.sendInput(localCmd + '\n')
-      this.showAIInput = false
-      this.aiInputText = ''
-      this.getUIContext().getPromptAction().showToast({
-        message: 'AI: ' + localCmd,
-        duration: 2000
-      })
-      return
-    }
 
     this.getUIContext().getPromptAction().showToast({
       message: 'AI 思考中...',
