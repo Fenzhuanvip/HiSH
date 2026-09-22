@@ -9,6 +9,7 @@
     "pages/UserGuidePage",
     "pages/GuideWebPage",
     "pages/VncPage",
-    "pages/AiWorkbenchPage"
+    "pages/AiWorkbenchPage",
+    "pages/GitHubPage"
   ]
 }
