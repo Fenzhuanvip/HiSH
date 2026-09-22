@@ -752,9 +752,9 @@ export default struct WebTerminal {
       ['查看历史', 'history'], ['history', 'history'],
       ['杀死', 'killall'], ['kill', 'killall'],
     ]
-    for (const [key, cmd] of rules) {
-      if (lower.includes(key)) {
-        return cmd
+    for (let i = 0; i < rules.length; i++) {
+      if (lower.includes(rules[i][0])) {
+        return rules[i][1]
       }
     }
     return ''
