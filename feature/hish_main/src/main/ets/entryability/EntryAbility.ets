@@ -74,6 +74,7 @@ export default class EntryAbility extends UIAbility {
       hilog.info(DOMAIN, 'testTag', 'Succeeded in loading the content.');
 
       const mainWindow = windowStage.getMainWindowSync();
+      mainWindow.setWindowSystemBarEnable(['navigation']);
       const uiContext = mainWindow.getUIContext();
       uiContext.setKeyboardAvoidMode(KeyboardAvoidMode.RESIZE);
       mainWindow.setWindowKeepScreenOn(AppStorage.get(appOption.keepScreenOn) as boolean);
