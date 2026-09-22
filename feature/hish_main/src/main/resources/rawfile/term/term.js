@@ -574,18 +574,6 @@ exports.setBackgroundColor = (color) => {
         brightBlue: '#93C5FD', brightMagenta: '#C4B5FD', brightCyan: '#67E8F9', brightWhite: '#F5F5F5'
     };
 };
-    } else {
-        // Sakura Night - 深色主题
-        term.options.theme = {
-            background: color, foreground: '#E2E2E9', cursor: '#F472B6', cursorAccent: color,
-            selection: 'rgba(244, 114, 182, 0.2)',
-            black: '#1A1B2E', red: '#F472B6', green: '#34D399', yellow: '#FBBF24',
-            blue: '#38BDF8', magenta: '#A78BFA', cyan: '#22D3EE', white: '#E2E2E9',
-            brightBlack: '#9B9BA8', brightRed: '#F9A8D4', brightGreen: '#6EE7B7', brightYellow: '#FCD34D',
-            brightBlue: '#7DD3FC', brightMagenta: '#C4B5FD', brightCyan: '#67E8F9', brightWhite: '#F5F5FA'
-        };
-    }
-};
 
 exports.setBackgroundImage = (dataUrl) => {
     var bg = document.getElementById('terminal-bg');
