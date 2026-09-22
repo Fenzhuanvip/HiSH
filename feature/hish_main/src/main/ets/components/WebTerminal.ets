@@ -373,7 +373,20 @@ export default struct WebTerminal {
             .onDownloadStart((event) => {
               if (event) {
                 const url = event.url
-                const filename = event.contentDisposition?.match(/filename="?([^"]+)"?/)?.[1] ?? url.split('/').pop() ?? 'download'
+                this.getUIContext().getPromptAction().showToast({ message: '下载触发: ' + url.substring(0, 50), duration: 3000 })
+                let filename = 'download'
+                if (event.contentDisposition && event.contentDisposition.length > 0) {
+                  const m = event.contentDisposition.match(/filename="?([^"]+)"?/)
+                  if (m && m[1]) {
+                    filename = m[1]
+                  }
+                }
+                if (filename === 'download') {
+                  const parts = url.split('/')
+                  if (parts.length > 0) {
+                    filename = parts[parts.length - 1]
+                  }
+                }
                 this.downloadFile(url, filename)
               }
             })
@@ -901,20 +914,16 @@ export default struct WebTerminal {
         return
       }
 
-      const savePath = sharedHost + filename
+      const savePath = sharedHost.endsWith('/') ? sharedHost + filename : sharedHost + '/' + filename
       this.getUIContext().getPromptAction().showToast({
         message: '开始下载: ' + filename,
         duration: 2000
       })
 
       const httpRequest = http.createHttp()
-      const headers: Record<string, string> = {
-        
-      }
 
       const response = await httpRequest.request(url, {
         method: http.RequestMethod.GET,
-        header: headers,
         expectDataType: http.HttpDataType.ARRAY_BUFFER
       })
 
@@ -936,9 +945,10 @@ export default struct WebTerminal {
 
       httpRequest.destroy()
     } catch (e) {
-      hilog.error(DOMAIN, 'WebTerminal', 'download failed: %{public}s', JSON.stringify(e))
+      const errMsg = e instanceof Error ? e.message : JSON.stringify(e)
+      hilog.error(DOMAIN, 'WebTerminal', 'download failed: %{public}s', errMsg)
       this.getUIContext().getPromptAction().showToast({
-        message: '下载异常',
+        message: '下载异常: ' + errMsg.substring(0, 50),
         duration: 3000
       })
     }
