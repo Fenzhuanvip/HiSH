@@ -49,9 +49,6 @@ export default struct WebTerminal {
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
   applicationMode: boolean = false
-  // GitHub 内嵌 WebView
-  @State showGitHubWebView: boolean = false
-  githubWebController: webview.WebviewController = new webview.WebviewController()
   @State keyFontColor: string = '#ffffff'
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
@@ -195,12 +192,6 @@ export default struct WebTerminal {
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/AiWorkbenchPage' })
     }, {
-      value: 'GitHub',
-      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.folder')).fontSize($r('sys.float.Title_S')),
-      action: () => {
-        this.showGitHubWebView = true
-      }
-    }, {
       value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })
@@ -232,104 +223,49 @@ export default struct WebTerminal {
   }
 
   build() {
-    Stack() {
-      // 底层：终端
-      Column() {
-        Web({
-          src: $rawfile('term/term.html'),
-          controller: this.webviewController
-        })
-          .javaScriptProxy({
-            object: this,
-            name: 'native',
-            methodList: ['sendInput', 'resize', 'load',
-              'getFontSize', 'getFontFamily',
-              'getCursorShape', 'getCursorBlink',
-              'getLigatures', 'getItalic',
-              'getBackgroundColor', 'getBackgroundImage', 'getBackgroundBlur',
-              'getUserFonts',
-              'setApplicationMode',
-              'onAvailableFontsDetected'],
-            controller: this.webviewController,
-            asyncMethodList: [],
-            permission: `{
-            "javascriptProxyPermission": {
-              "urlPermissionList": [
-                {
-                  "scheme": "resource",
-                  "host": "rawfile",
-                  "port": "",
-                  "path": ""
-                }
-              ]
-            }
-          }`
-          })
-          .backgroundColor('#1A1B2E')
-          .layoutWeight(1)
-          .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
-        if (this.virtKeyEnabled) {
-          if (this.showVirtKey) {
-            this.buildVirtualKeys()
-          } else {
-            this.buildShowVirtualKeysButton()
+    Column() {
+      Web({
+        src: $rawfile('term/term.html'),
+        controller: this.webviewController
+      })
+        .javaScriptProxy({
+          object: this,
+          name: 'native',
+          methodList: ['sendInput', 'resize', 'load',
+            'getFontSize', 'getFontFamily',
+            'getCursorShape', 'getCursorBlink',
+            'getLigatures', 'getItalic',
+            'getBackgroundColor', 'getBackgroundImage', 'getBackgroundBlur',
+            'getUserFonts',
+            'setApplicationMode',
+            'onAvailableFontsDetected'],
+          controller: this.webviewController,
+          asyncMethodList: [],
+          permission: `{
+          "javascriptProxyPermission": {
+            "urlPermissionList": [
+              {
+                "scheme": "resource",
+                "host": "rawfile",
+                "port": "",
+                "path": ""
+              }
+            ]
           }
+        }`
+        })
+        .backgroundColor('#1A1B2E')
+        .layoutWeight(1)
+        .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
+      if (this.virtKeyEnabled) {
+        if (this.showVirtKey) {
+          this.buildVirtualKeys()
+        } else {
+          this.buildShowVirtualKeysButton()
         }
       }
-      .height('100%')
-
-      // 上层：GitHub 内嵌全屏 WebView
-      if (this.showGitHubWebView) {
-        this.buildGitHubWebView()
-      }
     }
     .height('100%')
-  }
-
-  @Builder
-  buildGitHubWebView() {
-    Column() {
-      // 顶部栏：关闭按钮（暗夜紫主题）
-      Row() {
-        Text('GitHub')
-          .fontSize(16)
-          .fontColor('#E0E0E0')
-          .fontWeight(FontWeight.Medium)
-        Blank()
-        Button('✕')
-          .fontSize(18)
-          .fontColor('#FFFFFF')
-          .backgroundColor('#A78BFA')
-          .width(36)
-          .height(36)
-          .borderRadius(18)
-          .onClick(() => {
-            this.showGitHubWebView = false
-          })
-      }
-      .width('100%')
-      .height(52)
-      .padding({ left: 16, right: 16 })
-      .backgroundColor('#0D0D12')
-      .alignItems(VerticalAlign.Center)
-
-      // GitHub WebView
-      Web({
-        src: 'https://github.com/Fenzhuanvip/HiSH',
-        controller: this.githubWebController
-      })
-        .domStorageAccess(true)
-        .databaseAccess(true)
-        .imageAccess(true)
-        .onlineImageAccess(true)
-        .zoomAccess(false)
-        .fileAccess(false)
-        .layoutWeight(1)
-        .width('100%')
-    }
-    .width('100%')
-    .height('100%')
-    .backgroundColor('#000000')
   }
 
   @Builder
