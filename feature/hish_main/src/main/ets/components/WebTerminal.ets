@@ -4,8 +4,6 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import napi from 'libhish_main.so';
 import { webview } from '@kit.ArkWeb';
 import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
-import { http } from '@kit.NetworkKit';
-import fs from '@ohos.file.fs';
 import appOption, { CursorShape, savePreference, UserFont, UserFontData } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
 import { SymbolGlyphModifier, mediaquery } from '@kit.ArkUI';
@@ -28,19 +26,6 @@ const VKeyHeight = VKeyMetrics.height;
 const VKeyWidth = VKeyMetrics.width;
 const VKeyFontSize = VKeyMetrics.fontSize;
 const VKeyRadius = VKeyMetrics.radius;
-
-interface NvidiaMessage {
-  role: string
-  content: string
-}
-
-interface NvidiaRequestBody {
-  model: string
-  messages: NvidiaMessage[]
-  max_tokens: number
-  temperature: number
-  stream: boolean
-}
 
 @Component
 export default struct WebTerminal {
@@ -65,10 +50,6 @@ export default struct WebTerminal {
   resizeTimeout?: number = undefined
   applicationMode: boolean = false
   @State keyFontColor: string = '#ffffff'
-  @State showAIInput: boolean = false
-  @State aiInputText: string = ''
-  @State showGitHubWebView: boolean = false
-  githubWebController: webview.WebviewController = new webview.WebviewController()
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
   private colorModeListener?: mediaquery.MediaQueryListener = undefined
@@ -214,15 +195,15 @@ export default struct WebTerminal {
       value: 'GitHub',
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.folder')).fontSize($r('sys.float.Title_S')),
       action: () => {
-        this.showGitHubWebView = true
-      }
-    }, {
-      value: 'AI 助手',
-      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.bolt')).fontSize($r('sys.float.Title_S')),
-      action: () => {
-        this.showAIInput = !this.showAIInput
-        if (!this.showAIInput) {
-          this.aiInputText = ''
+        try {
+          const context = this.getUIContext().getHostContext() as common.UIAbilityContext
+          context.startAbility({
+            action: 'ohos.want.action.viewData',
+            entities: ['entity.system.browsable'],
+            uri: 'https://github.com/Fenzhuanvip/HiSH'
+          })
+        } catch (e) {
+          hilog.error(DOMAIN, 'WebTerminal', 'open GitHub failed: %{public}s', JSON.stringify(e))
         }
       }
     }, {
@@ -241,22 +222,6 @@ export default struct WebTerminal {
     return [...vncOptions, ...regularOptions];
   }
 
-  @Builder
-  buildAIButton() {
-    Button('AI', { buttonStyle: ButtonStyleMode.TEXTUAL })
-      .height(VKeyHeight)
-      .width(VKeyWidth)
-      .borderRadius(VKeyRadius)
-      .fontSize(VKeyFontSize)
-      .fontColor('#F472B6')
-      .margin(VKeyMargin)
-      .padding({ left: VKeyPadding, right: VKeyPadding })
-      .backgroundColor('#33F472B6')
-      .onClick(() => {
-        this.showAIInput = !this.showAIInput
-        if (!this.showAIInput) {
-          this.aiInputText = ''
-        }
       })
   }
 
@@ -276,8 +241,7 @@ export default struct WebTerminal {
   }
 
   build() {
-    Stack() {
-      Column() {
+    Column() {
       Web({
         src: $rawfile('term/term.html'),
         controller: this.webviewController
@@ -311,106 +275,12 @@ export default struct WebTerminal {
         .backgroundColor('#000000')
         .layoutWeight(1)
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
-      if (this.showAIInput) {
-        Row() {
-          TextInput({ text: this.aiInputText, placeholder: '输入你想做的事，如：查看磁盘空间' })
-            .layoutWeight(1)
-            .height(36)
-            .fontSize(14)
-            .fontColor('#E0E0E0')
-            .borderRadius(10)
-            .backgroundColor('#252637')
-            .onChange((value: string) => {
-              this.aiInputText = value
-            })
-            .onSubmit(() => {
-              this.executeAICommand()
-            })
-          Button('✓')
-            .height(36)
-            .width(36)
-            .borderRadius(10)
-            .fontSize(18)
-            .fontColor('#FFFFFF')
-            .backgroundColor('#A78BFA')
-            .margin({ left: 6 })
-            .onClick(() => {
-              this.executeAICommand()
-            })
-          Button('✗')
-            .height(36)
-            .width(36)
-            .borderRadius(10)
-            .fontSize(16)
-            .fontColor('#9B9BA8')
-            .backgroundColor('#252637')
-            .margin({ left: 6 })
-            .onClick(() => {
-              this.showAIInput = false
-              this.aiInputText = ''
-            })
-        }
-        .width('100%')
-        .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-        .backgroundColor('#1A1B2E')
-      }
       if (this.virtKeyEnabled) {
         if (this.showVirtKey) {
           this.buildVirtualKeys()
         } else {
           this.buildShowVirtualKeysButton()
         }
-      }
-      }
-      .height('100%')
-
-      if (this.showGitHubWebView) {
-        Stack() {
-          Web({ src: 'https://github.com/Fenzhuanvip/HiSH', controller: this.githubWebController })
-            .height('100%')
-            .width('100%')
-            .backgroundColor('#000000')
-            .domStorageAccess(true)
-            .databaseAccess(true)
-            .imageAccess(true)
-            .zoomAccess(false)
-            .fileAccess(false)
-            .onDownloadStart((event) => {
-              if (event) {
-                const url = event.url
-                this.getUIContext().getPromptAction().showToast({ message: '下载触发: ' + url.substring(0, 50), duration: 3000 })
-                let filename = 'download'
-                if (event.contentDisposition && event.contentDisposition.length > 0) {
-                  const m = event.contentDisposition.match(/filename="?([^"]+)"?/)
-                  if (m && m[1]) {
-                    filename = m[1]
-                  }
-                }
-                if (filename === 'download') {
-                  const parts = url.split('/')
-                  if (parts.length > 0) {
-                    filename = parts[parts.length - 1]
-                  }
-                }
-                this.downloadFile(url, filename)
-              }
-            })
-
-          Column() {}
-            .width('100%')
-            .height('100%')
-            .hitTestBehavior(HitTestMode.Transparent)
-            .gesture(
-              PanGesture()
-                .onActionEnd((event: GestureEvent) => {
-                  if (event.offsetX > 50) {
-                    this.showGitHubWebView = false
-                  }
-                })
-            )
-        }
-        .height('100%')
-        .width('100%')
       }
     }
     .height('100%')
@@ -475,7 +345,7 @@ export default struct WebTerminal {
           Row().layoutWeight(1);
 
           this.buildVKey('PGUP', NormalKeySequences.PGUP);
-          this.toggleShiftKey('SHIFT', () => this.toggleShift());
+          this.toggleShiftKey('SH', () => this.toggleShift());
           this.buildVKey('↑', NormalKeySequences.UP, NormalKeySequences.UP_APP);
           this.buildVKey('↵', '\n', '\n');
 
@@ -787,140 +657,8 @@ export default struct WebTerminal {
     }
   }
 
-  private matchAICommand(input: string): string {
-    const lower = input.toLowerCase().trim()
-    if (lower.length === 0) return ''
-    const rules: Array<[string, string]> = [
-      ['磁盘', 'df -h'], ['disk', 'df -h'], ['存储', 'df -h'],
-      ['内存', 'free -h'], ['memory', 'free -h'], ['ram', 'free -h'],
-      ['进程', 'ps aux'], ['process', 'ps aux'], ['任务', 'top -n 1'],
-      ['网络', 'ip addr'], ['network', 'ip addr'],
-      ['端口', 'ss -tlnp'], ['port', 'ss -tlnp'],
-      ['系统信息', 'uname -a'], ['system', 'uname -a'], ['内核', 'uname -r'],
-      ['用户', 'whoami'], ['user', 'whoami'], ['登录', 'who'],
-      ['目录', 'pwd'], ['路径', 'pwd'], ['path', 'pwd'],
-      ['日期', 'date'], ['时间', 'date'], ['date', 'date'], ['time', 'date'],
-      ['日历', 'cal'], ['calendar', 'cal'],
-      ['cpu', 'lscpu'], ['处理器', 'lscpu'],
-      ['列出文件', 'ls -la'], ['文件列表', 'ls -la'], ['list', 'ls -la'],
-      ['查看文件', 'ls -la'], ['ls', 'ls -la'],
-      ['更新系统', 'apt update && apt upgrade -y'], ['update', 'apt update'],
-      ['安装', 'apt install -y'], ['install', 'apt install -y'],
-      ['搜索包', 'apt search'], ['search', 'apt search'],
-      ['下载', 'wget'], ['download', 'wget'],
-      ['ping', 'ping -c 4 google.com'], ['连通', 'ping -c 4 8.8.8.8'],
-      ['公网ip', 'curl -s ifconfig.me'], ['公网', 'curl -s ifconfig.me'],
-      ['清理屏幕', 'clear'], ['清屏', 'clear'], ['clear', 'clear'],
-      ['帮助', 'help'], ['help', 'help'],
-      ['git状态', 'git status'], ['git status', 'git status'],
-      ['git日志', 'git log --oneline -10'], ['git log', 'git log --oneline -10'],
-      ['git分支', 'git branch -a'], ['git branch', 'git branch -a'],
-      ['重启', 'sudo reboot'], ['关机', 'sudo poweroff'],
-      ['退出', 'exit'], ['exit', 'exit'],
-      ['环境变量', 'env'], ['env', 'env'],
-      ['磁盘占用', 'du -sh *'], ['空间', 'du -sh *'],
-      ['查看历史', 'history'], ['history', 'history'],
-      ['杀死', 'killall'], ['kill', 'killall'],
-    ]
-    for (let i = 0; i < rules.length; i++) {
-      if (lower.includes(rules[i][0])) {
-        return rules[i][1]
-      }
-    }
-    return ''
   }
 
-  private async callNvidiaAI(userInput: string): Promise<string> {
-    try {
-      const httpRequest = http.createHttp();
-      const apiKey = AppStorage.get<string>(appOption.nvidiaApiKey) ?? ''
-      if (apiKey.length === 0) {
-        return ''
-      }
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey
-      };
-      const systemMsg: NvidiaMessage = { role: 'system', content: 'You are a Linux terminal assistant. Convert the user natural language request to a shell command. Reply with ONLY the shell command, no explanation, no markdown, no backticks.' };
-      const userMsg: NvidiaMessage = { role: 'user', content: userInput };
-      const messages: NvidiaMessage[] = [systemMsg, userMsg];
-      const requestBody: NvidiaRequestBody = {
-        model: AppStorage.get<string>(appOption.nvidiaModel) ?? 'meta/llama3.1-70b-instruct',
-        messages: messages,
-        max_tokens: 256,
-        temperature: 0.7,
-        stream: false
-      };
-      const body = JSON.stringify(requestBody);
-
-      const response = await httpRequest.request('https://integrate.api.nvidia.com/v1/chat/completions', {
-        method: http.RequestMethod.POST,
-        header: headers,
-        extraData: body,
-        expectDataType: http.HttpDataType.STRING
-      });
-
-      httpRequest.destroy();
-
-      if (response.responseCode === 200) {
-        const resultStr = typeof response.result === 'string' ? response.result as string : '';
-        if (resultStr.length > 0) {
-          const obj = JSON.parse(resultStr) as Record<string, Object>;
-          const choices = obj['choices'] as Object[];
-          if (choices && choices.length > 0) {
-            const choice = choices[0] as Record<string, Object>;
-            const message = choice['message'] as Record<string, string>;
-            const content = message['content'] ?? '';
-            return content.trim();
-          }
-        }
-      }
-      hilog.error(DOMAIN, 'WebTerminal', 'NVIDIA API HTTP %{public}d', response.responseCode);
-      return '';
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : JSON.stringify(e)
-      hilog.error(DOMAIN, 'WebTerminal', 'NVIDIA API failed: %{public}s', errMsg);
-      return '';
-    }
-  }
-
-  private async executeAICommand() {
-    const userInput = this.aiInputText
-    if (userInput.length === 0) return
-
-    this.getUIContext().getPromptAction().showToast({
-      message: 'AI 思考中...',
-      duration: 5000
-    })
-    const aiCmd = await this.callNvidiaAI(userInput)
-
-    if (aiCmd.length > 0) {
-      this.sendInput(aiCmd + '\n')
-      this.showAIInput = false
-      this.aiInputText = ''
-      this.getUIContext().getPromptAction().showToast({
-        message: 'AI: ' + aiCmd,
-        duration: 3000
-      })
-    } else {
-      const apiKey = AppStorage.get<string>(appOption.nvidiaApiKey) ?? ''
-      this.getUIContext().getPromptAction().showToast({
-        message: apiKey.length === 0 ? '请先在设置中填入 NVIDIA API Key' : 'AI 请求失败，请重试',
-        duration: 3000
-      })
-    }
-  }
-
-  private async downloadFile(url: string, filename: string): Promise<void> {
-    try {
-      const sharedHost = AppStorage.get<string>(appOption.sharedHost) ?? ''
-      if (sharedHost.length === 0) {
-        this.getUIContext().getPromptAction().showToast({
-          message: '请先设置共享文件夹',
-          duration: 3000
-        })
-        return
-      }
 
       const savePath = sharedHost.endsWith('/') ? sharedHost + filename : sharedHost + '/' + filename
       this.getUIContext().getPromptAction().showToast({
