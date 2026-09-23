@@ -4,7 +4,6 @@ import preference from '@ohos.data.preferences';
 import { picker } from '@kit.CoreFileKit';
 import fs from '@ohos.file.fs';
 import { hilog } from '@kit.PerformanceAnalysisKit';
-import { http } from '@kit.NetworkKit';
 import appOption, { CursorShape, savePreference, UserFont } from '../model/appOption';
 import { OpenSourceContent } from './OpenSourceContent';
 import { BlockTitle, LinkItem, SettingBlockStyle, SettingItem } from './SettingsBase';
@@ -70,11 +69,6 @@ export default struct SettingsContent {
   // GitCode（atomgit）token 认证
   @StorageLink(appOption.gitcodeToken) gitcodeToken: string = ''
   @State tokenInput: string = ''
-  // NVIDIA AI API Key
-  @Watch('saveNvidiaApiKey') @StorageLink(appOption.nvidiaApiKey) nvidiaApiKey: string = ''
-  @State apiKeyInput: string = ''
-  @Watch('saveNvidiaModel') @StorageLink(appOption.nvidiaModel) nvidiaModel: string = 'meta/llama3.1-70b-instruct'
-  @State nvidiaModels: string[] = ['meta/llama3.1-70b-instruct']
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -363,99 +357,6 @@ export default struct SettingsContent {
   }
 
   @Builder
-  private buildApiKeyInput() {
-    TextInput({ text: this.nvidiaApiKey, placeholder: 'nvapi-...' })
-      .fontSize(12)
-      .width('60%')
-      .type(InputType.Password)
-      .fontColor('#E0E0E0')
-      .backgroundColor('#252637')
-      .onChange((val: string) => { this.apiKeyInput = val })
-      .onSubmit(() => {
-        this.nvidiaApiKey = this.apiKeyInput
-      })
-  }
-
-  async saveNvidiaApiKey() {
-    await savePreference(appOption.nvidiaApiKey, this.nvidiaApiKey, this.getUIContext())
-  }
-
-  @Builder
-  private buildRefreshButton() {
-    Button('刷新')
-      .fontSize(12)
-      .height(32)
-      .borderRadius(8)
-      .fontColor('#FFFFFF')
-      .backgroundColor('#A78BFA')
-      .onClick(() => {
-        this.fetchNvidiaModels()
-      })
-  }
-
-  @Builder
-  private buildModelSelect() {
-    Select(this.buildModelOptions())
-      .value(this.nvidiaModel)
-      .width('60%')
-      .onSelect((_i: number, value: string) => {
-        this.nvidiaModel = value
-      })
-  }
-
-  private buildModelOptions(): SelectOption[] {
-    const options: SelectOption[] = []
-    for (let i = 0; i < this.nvidiaModels.length; i++) {
-      const opt: SelectOption = { value: this.nvidiaModels[i] }
-      options.push(opt)
-    }
-    return options
-  }
-
-  async fetchNvidiaModels() {
-    const apiKey = this.nvidiaApiKey
-    if (apiKey.length === 0) {
-      this.getUIContext().getPromptAction().showToast({ message: '请先填入 API Key' })
-      return
-    }
-    try {
-      const httpRequest = http.createHttp()
-      const headers: Record<string, string> = {
-        'Authorization': 'Bearer ' + apiKey
-      }
-      const response = await httpRequest.request('https://integrate.api.nvidia.com/v1/models', {
-        method: http.RequestMethod.GET,
-        header: headers
-      })
-      httpRequest.destroy()
-      if (response.responseCode === 200) {
-        const resultStr = typeof response.result === 'string' ? response.result as string : ''
-        if (resultStr.length > 0) {
-          const obj = JSON.parse(resultStr) as Record<string, Object>
-          const data = obj['data'] as Object[]
-          if (data && data.length > 0) {
-            const models: string[] = []
-            for (let i = 0; i < data.length; i++) {
-              const item = data[i] as Record<string, string>
-              models.push(item['id'])
-            }
-            this.nvidiaModels = models
-            this.getUIContext().getPromptAction().showToast({ message: `获取到 ${models.length} 个模型` })
-          }
-        }
-      } else {
-        this.getUIContext().getPromptAction().showToast({ message: '获取失败: HTTP ' + response.responseCode })
-      }
-    } catch (e) {
-      this.getUIContext().getPromptAction().showToast({ message: '获取模型列表失败' })
-    }
-  }
-
-  async saveNvidiaModel() {
-    await savePreference(appOption.nvidiaModel, this.nvidiaModel, this.getUIContext())
-  }
-
-  @Builder
   private buildTerminalCursorShape() {
     Select(cursorShapeOptions)
       .width(160)
@@ -637,32 +538,6 @@ export default struct SettingsContent {
               }
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.runningInBackground, !this.runningInBackground)
-            })
-          }
-          .attributeModifier(this.blockStyle)
-
-          BlockTitle({ content: 'AI 助手' })
-          Column() {
-            SettingItem({
-              title: 'NVIDIA API Key',
-              subTitle: '在 build.nvidia.com 生成，用于 AI 自然语言转命令',
-              content: () => {
-                this.buildApiKeyInput()
-              }
-            })
-            SettingItem({
-              title: 'AI 模型',
-              subTitle: '点击下方按钮从 NVIDIA 拉取模型列表',
-              content: () => {
-                this.buildModelSelect()
-              }
-            })
-            SettingItem({
-              title: '刷新模型列表',
-              subTitle: `当前 ${this.nvidiaModels.length} 个模型`,
-              content: () => {
-                this.buildRefreshButton()
-              }
             })
           }
           .attributeModifier(this.blockStyle)
