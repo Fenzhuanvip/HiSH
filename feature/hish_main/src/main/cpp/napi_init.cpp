@@ -39,7 +39,6 @@ struct data_buffer {
 int serial_input_fd = -1;
 napi_threadsafe_function on_data_callback = nullptr;
 napi_threadsafe_function on_shutdown_callback = nullptr;
-napi_threadsafe_function on_browser_request_callback = nullptr;
 
 std::mutex buffer_mtx;
 std::string temp_buffer = "";
@@ -1141,74 +1140,6 @@ static napi_value onShutdown(napi_env env, napi_callback_info info) {
     return nullptr;
 }
 
-// ================== Browser Server ==================
-void call_on_browser_request_callback(napi_env env, napi_value js_callback, void *context, void *data) {
-    char *url = static_cast<char *>(data);
-    napi_value url_str;
-    napi_create_string_utf8(env, url, NAPI_AUTO_LENGTH, &url_str);
-    napi_value undefined;
-    napi_get_undefined(env, &undefined);
-    napi_call_function(env, undefined, js_callback, 1, &url_str, nullptr);
-    free(url);
-}
-
-void browser_server_thread(int port) {
-    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd < 0) return;
-    int opt = 1;
-    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    addr.sin_port = htons(port);
-    if (bind(server_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0) { close(server_fd); return; }
-    listen(server_fd, 5);
-    OH_LOG_INFO(LOG_APP, "Browser server on port %{public}d", port);
-    while (true) {
-        int client_fd = accept(server_fd, nullptr, nullptr);
-        if (client_fd < 0) continue;
-        char buf[4096] = {0};
-        ssize_t n = read(client_fd, buf, sizeof(buf) - 1);
-        if (n > 0) {
-            char *url_start = strstr(buf, "url=");
-            if (url_start) {
-                url_start += 4;
-                char *url_end = strchr(url_start, ' ');
-                if (url_end) *url_end = '\0';
-                char *url = strdup(url_start);
-                if (on_browser_request_callback && url) {
-                    napi_call_threadsafe_function(on_browser_request_callback, url, napi_tsfn_nonblocking);
-                } else { free(url); }
-            }
-            const char *resp = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
-            write(client_fd, resp, strlen(resp));
-        }
-        close(client_fd);
-    }
-}
-
-static napi_value startBrowserServer(napi_env env, napi_callback_info info) {
-    size_t argc = 1;
-    napi_value args[1] = {nullptr};
-    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-    int port = 8889;
-    if (argc >= 1) napi_get_value_int32(env, args[0], &port);
-    std::thread(browser_server_thread, port).detach();
-    return nullptr;
-}
-
-static napi_value onBrowserRequest(napi_env env, napi_callback_info info) {
-    size_t argc = 1;
-    napi_value args[1] = {nullptr};
-    napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
-    napi_value cb_name;
-    napi_create_string_utf8(env, "browser_request_callback", NAPI_AUTO_LENGTH, &cb_name);
-    napi_create_threadsafe_function(env, args[0], nullptr, cb_name, 0, 1, nullptr, nullptr, nullptr,
-                                    call_on_browser_request_callback, &on_browser_request_callback);
-    return nullptr;
-}
-
 static napi_value bool_from_int(napi_env env, int v) {
     napi_value result;
     napi_get_boolean(env, v != 0, &result);
@@ -1297,8 +1228,6 @@ static napi_value Init(napi_env env, napi_value exports) {
         {"applySnapshot", nullptr, applySnapshot, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"deleteSnapshot", nullptr, deleteSnapshot, nullptr, nullptr, nullptr, napi_default, nullptr},
         {"optimizeImage", nullptr, optimizeImage, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"startBrowserServer", nullptr, startBrowserServer, nullptr, nullptr, nullptr, napi_default, nullptr},
-        {"onBrowserRequest", nullptr, onBrowserRequest, nullptr, nullptr, nullptr, napi_default, nullptr},
     };
     napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
 
