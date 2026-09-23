@@ -657,48 +657,6 @@ export default struct WebTerminal {
     }
   }
 
-  }
-
-
-      const savePath = sharedHost.endsWith('/') ? sharedHost + filename : sharedHost + '/' + filename
-      this.getUIContext().getPromptAction().showToast({
-        message: '开始下载: ' + filename,
-        duration: 2000
-      })
-
-      const httpRequest = http.createHttp()
-
-      const response = await httpRequest.request(url, {
-        method: http.RequestMethod.GET,
-        expectDataType: http.HttpDataType.ARRAY_BUFFER
-      })
-
-      if (response.responseCode === 200) {
-        const arrayBuffer = response.result as ArrayBuffer
-        const file = fs.openSync(savePath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY);
-        fs.writeSync(file.fd, arrayBuffer);
-        fs.closeSync(file.fd)
-        this.getUIContext().getPromptAction().showToast({
-          message: '下载完成: ' + savePath,
-          duration: 3000
-        })
-      } else {
-        this.getUIContext().getPromptAction().showToast({
-          message: '下载失败: HTTP ' + response.responseCode,
-          duration: 3000
-        })
-      }
-
-      httpRequest.destroy()
-    } catch (e) {
-      const errMsg = e instanceof Error ? e.message : JSON.stringify(e)
-      hilog.error(DOMAIN, 'WebTerminal', 'download failed: %{public}s', errMsg)
-      this.getUIContext().getPromptAction().showToast({
-        message: '下载异常: ' + errMsg.substring(0, 50),
-        duration: 3000
-      })
-    }
-  }
 
   aboutToAppear() {
     try {
