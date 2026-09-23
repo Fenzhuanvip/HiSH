@@ -363,7 +363,7 @@ export class QemuAgent {
    * [优化] 在发送指令前发送 0xFF 字节以冲刷缓冲区，并发送随机 ID 以同步
    */
   private async sync(): Promise<boolean> {
-    const syncToken = Math.floor(Math.random() * 2147483647)
+    const syncToken = Math.floor(Math.random() * 2147483647)  // [SEC] 非加密安全，仅用于 QGA 同步
 
     try {
       if (this.client) {
