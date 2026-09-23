@@ -485,6 +485,11 @@ exports.writeBase64 = (base64Data, applicationMode) => {
             }
         });
 
+        // 安全过滤：移除 CSI 51;50t（Report Window Title，xterm.js 未处理会显示为文本）
+        binaryString = binaryString.replace(/\x1b\[51;50t/g, '');
+        // 安全过滤：移除 deepseek 模型输出的 think 标签
+        binaryString = binaryString.replace(/\t<\\?char\/>think>|\t<\\?char\/>\/think>/g, '');
+
         const uint8 = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
             uint8[i] = binaryString.charCodeAt(i);

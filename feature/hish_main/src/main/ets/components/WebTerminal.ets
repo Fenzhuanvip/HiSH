@@ -309,7 +309,7 @@ export default struct WebTerminal {
           this.buildVKey('PGUP', NormalKeySequences.PGUP);
           this.toggleShiftKey('SH', () => this.toggleShift());
           this.buildVKey('↑', NormalKeySequences.UP, NormalKeySequences.UP_APP);
-          this.buildVKey('↵', '\n', '\n');
+          this.buildVKey('↵', '\r', '\r');
 
           this.settingsButton();
         }
