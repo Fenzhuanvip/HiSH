@@ -222,9 +222,6 @@ export default struct WebTerminal {
     return [...vncOptions, ...regularOptions];
   }
 
-      })
-  }
-
   @Builder
   hideVKeyButton() {
     Button('▼', { buttonStyle: ButtonStyleMode.TEXTUAL })
@@ -272,7 +269,7 @@ export default struct WebTerminal {
           }
         }`
         })
-        .backgroundColor('#000000')
+        .backgroundColor('#1A1B2E')
         .layoutWeight(1)
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
       if (this.virtKeyEnabled) {
@@ -395,19 +392,19 @@ export default struct WebTerminal {
   //  ============== for javascript in ArkWeb ================
 
   sendInput(data: string): void {
-    hilog.info(DOMAIN, 'WebTerminal', 'sendInput: len=%{public}d', data.length);
+    hilog.info(DOMAIN, 'WebTerminal', 'sendInput, data: %{public}s', data);
 
     const modifierResult = applyVirtualKeyModifiers(data, this.ctrlPressed, this.shiftPressed)
     data = modifierResult.data
 
     if (modifierResult.ctrlConverted) {
-      hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Ctrl: control char sent');
+      hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Ctrl, converted to control char');
     }
     if (modifierResult.shouldResetCtrl) {
       this.toggleCtrl()
     }
     if (modifierResult.shiftConverted) {
-      hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Shift: len=%{public}d', data.length);
+      hilog.info(DOMAIN, 'WebTerminal', 'sendInput with Shift, converted to: %{public}s', data);
     }
 
     let buffer = stringToArrayBuffer(data, 'utf-8');
@@ -656,7 +653,6 @@ export default struct WebTerminal {
       hilog.error(DOMAIN, 'WebTerminal', 'Failed to parse available fonts: %{public}s', JSON.stringify(e));
     }
   }
-
 
   aboutToAppear() {
     try {
