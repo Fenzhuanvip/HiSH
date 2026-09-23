@@ -7,3 +7,4 @@ export { RootfsManagement } from './src/main/ets/pages/RootfsManagement';
 export { SharedFolderPage } from './src/main/ets/pages/SharedFolderPage';
 export { UserGuidePage } from './src/main/ets/pages/UserGuidePage';
 export { GuideWebPage } from './src/main/ets/pages/GuideWebPage';
+export { BrowserPage } from './src/main/ets/pages/BrowserPage';
