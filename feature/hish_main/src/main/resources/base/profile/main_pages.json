@@ -8,5 +8,6 @@
     "pages/SharedFolderPage",
     "pages/UserGuidePage",
     "pages/GuideWebPage",
+    "pages/BrowserPage"
   ]
 }
