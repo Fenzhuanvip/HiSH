@@ -384,10 +384,6 @@ export default struct WebTerminal {
     napi.onShutdown((): void => {
       void this.onShutdown()
     })
-    napi.onBrowserRequest((url: string): void => {
-      this.getUIContext().getRouter().pushUrl({ url: 'pages/BrowserPage', params: { url: url } })
-    })
-    napi.startBrowserServer(8889)
     const vmStatus = AppStorage.get(appOption.currentEmulatorStatus) as string | undefined
     if (vmStatus === 'ABNORMAL') {
       const message = this.getUIContext().getHostContext()?.resourceManager.getStringByNameSync('pm_status_qmp_connect_failed')

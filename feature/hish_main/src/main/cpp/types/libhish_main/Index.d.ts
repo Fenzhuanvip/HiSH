@@ -16,5 +16,3 @@ export const createSnapshot: (imagePath: string, snapshotName: string) => string
 export const applySnapshot: (imagePath: string, snapshotName: string) => string;
 export const deleteSnapshot: (imagePath: string, snapshotName: string) => string;
 export const optimizeImage: (imagePath: string, outputPath: string, mode: 'sparse' | 'prealloc' | 'cleanup' | 'optimize') => string;
-export const startBrowserServer: (port?: number) => void;
-export const onBrowserRequest: (callback: (url: string) => void) => void;
