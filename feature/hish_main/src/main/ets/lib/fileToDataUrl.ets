@@ -39,7 +39,15 @@ function mimeOf(path: string): string {
 /**
  * 读取文件内容并编码为 data URL 字符串。
  * 文件不存在或读取失败时返回空字符串。
+ * 使用 mtime 缓存避免重复读取未变更的文件（如背景图、字体）。
  */
+class DataUrlCacheEntry {
+  mtime: number = 0
+  dataUrl: string = ''
+}
+const dataUrlCache = new Map<string, DataUrlCacheEntry>()
+const MAX_CACHE_SIZE = 16
+
 function fileToDataUrl(path: string): string {
   if (path.length === 0 || !fs.accessSync(path, fs.AccessModeType.EXIST)) {
     return ''
@@ -47,6 +55,11 @@ function fileToDataUrl(path: string): string {
   let file: fs.File | undefined = undefined
   try {
     const stat = fs.statSync(path)
+    // 缓存命中：mtime 未变则直接返回
+    const cached = dataUrlCache.get(path)
+    if (cached !== undefined && cached.mtime === stat.mtime) {
+      return cached.dataUrl
+    }
     file = fs.openSync(path, fs.OpenMode.READ_ONLY)
     const buf = new ArrayBuffer(stat.size)
     let offset = 0
@@ -58,7 +71,25 @@ function fileToDataUrl(path: string): string {
       offset += readLen
     }
     const base64 = new util.Base64Helper().encodeToStringSync(new Uint8Array(buf, 0, offset))
-    return `data:${mimeOf(path)};base64,${base64}`
+    const result = `data:${mimeOf(path)};base64,${base64}`
+    // 写入缓存
+    if (dataUrlCache.size >= MAX_CACHE_SIZE) {
+      // 简单淘汰：清空一半
+      const keys = dataUrlCache.keys()
+      let removed = 0
+      for (const k of keys) {
+        dataUrlCache.delete(k)
+        removed++
+        if (removed >= MAX_CACHE_SIZE / 2) {
+          break
+        }
+      }
+    }
+    const entry = new DataUrlCacheEntry()
+    entry.mtime = stat.mtime
+    entry.dataUrl = result
+    dataUrlCache.set(path, entry)
+    return result
   } catch (e) {
     hilog.error(DOMAIN, 'fileToDataUrl', 'read file failed: %{public}s, %{public}s', path, JSON.stringify(e))
     return ''

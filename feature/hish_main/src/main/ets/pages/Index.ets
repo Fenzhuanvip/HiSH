@@ -83,29 +83,6 @@ struct PcIndex {
             buttonStyle: ButtonStyleMode.TEXTUAL,
             controlSize: ControlSize.SMALL
           }) {
-            Text('VNC')
-              .fontSize(14)
-              .fontColor('#ffffff')
-          }
-          .borderRadius(4)
-          .padding(4)
-          .margin({ right: 10 })
-          .attributeModifier(this.immersiveButton)
-          .onClick((event: ClickEvent) => {
-            const vncEnabled = AppStorage.get<boolean>(appOption.vncEnabled)!!
-            if (vncEnabled) {
-              this.getUIContext().getRouter().pushUrl({
-                url: 'pages/VncPage'
-              });
-            } else {
-              this.getUIContext().getPromptAction().showToast({ message: $r('app.string.vnc_service_not_started') });
-            }
-          })
-          Button({
-            type: ButtonType.Normal,
-            buttonStyle: ButtonStyleMode.TEXTUAL,
-            controlSize: ControlSize.SMALL
-          }) {
             SymbolGlyph($r('sys.symbol.more'))
               .fontSize('20vp')
               .width(20)

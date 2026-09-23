@@ -38,11 +38,6 @@ const fontSizeOptions: SelectOption[] = [{
 
 const cursorShapeOptions: SelectOption[] = [{ value: 'BLOCK' }, { value: 'BEAM' }, { value: 'UNDERLINE' }]
 
-const vncPortModeOptions: SelectOption[] = [
-  { value: $r('app.string.setting_vnc_port_mode_local') },
-  { value: $r('app.string.setting_vnc_port_mode_lan') }
-]
-
 @Component
 export default struct SettingsContent {
   @Watch('saveKeepScreenOn') @StorageProp(appOption.keepScreenOn) keepScreenOn: boolean = false
@@ -61,14 +56,8 @@ export default struct SettingsContent {
   @State colorInput: string = ''
   @Watch('saveRunningInBackground') @StorageProp(appOption.runningInBackground) runningInBackground: boolean = false
   @Watch('saveDisplayStatusBar') @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
-  @Watch('saveVncEnabled') @StorageProp(appOption.vncEnabled) vncEnabled: boolean = false
-  @Watch('saveVncPortMode') @StorageProp(appOption.vncPortMode) vncPortMode: string = 'local'
-  @Watch('saveVncPort') @StorageProp(appOption.vncPort) vncPort: number = 5900
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
-  // GitCode（atomgit）token 认证
-  @StorageLink(appOption.gitcodeToken) gitcodeToken: string = ''
-  @State tokenInput: string = ''
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -310,53 +299,6 @@ export default struct SettingsContent {
   }
 
   @Builder
-  private buildVncEnabled() {
-    Checkbox()
-      .select(this.vncEnabled)
-      .onChange((value: boolean) => {
-        AppStorage.setOrCreate(appOption.vncEnabled, value)
-      })
-  }
-
-  @Builder
-  private buildVncPortMode() {
-    Select(vncPortModeOptions)
-      .width(100)
-      .value(this.vncPortMode === 'lan' ?
-        $r('app.string.setting_vnc_port_mode_lan') :
-        $r('app.string.setting_vnc_port_mode_local'))
-      .onSelect((_i, _value) => {
-        const mode = _i === 1 ? 'lan' : 'local'
-        AppStorage.setOrCreate(appOption.vncPortMode, mode)
-      })
-  }
-
-  @Builder
-  private buildVncPort() {
-    TextInput({ text: this.vncPort.toString(), placeholder: '5900' })
-      .width(80)
-      .type(InputType.Number)
-      .onChange((value) => {
-        const port = value ? parseInt(value) : 5900
-        const clamped = Math.min(Math.max(port, 5900), 5999)
-        AppStorage.setOrCreate(appOption.vncPort, clamped)
-      })
-  }
-
-  @Builder
-  private buildTokenInput() {
-    TextInput({ text: this.gitcodeToken, placeholder: '在 atomgit.com → 设置 → 个人访问令牌 生成' })
-      .fontSize(12)
-      .width('60%')
-      .type(InputType.Password)
-      .onChange((val: string) => { this.tokenInput = val })
-      .onSubmit(() => {
-        this.gitcodeToken = this.tokenInput
-        savePreference(appOption.gitcodeToken, this.tokenInput, this.getUIContext())
-      })
-  }
-
-  @Builder
   private buildTerminalCursorShape() {
     Select(cursorShapeOptions)
       .width(160)
@@ -495,34 +437,6 @@ export default struct SettingsContent {
               subTitle: $r('app.string.setting_background_blur_desc'),
               content: () => {
                 this.buildBackgroundBlurSlider()
-              }
-            })
-          }
-          .attributeModifier(this.blockStyle)
-
-          BlockTitle({ content: $r('app.string.setting_vnc') })
-          Column() {
-            SettingItem({
-              title: $r('app.string.setting_enable_vnc'),
-              subTitle: $r('app.string.setting_vnc_restart_hint'),
-              content: () => {
-                this.buildVncEnabled()
-              }
-            }).onClick(() => {
-              AppStorage.setOrCreate(appOption.vncEnabled, !this.vncEnabled)
-            })
-            SettingItem({
-              title: $r('app.string.setting_vnc_port_mode'),
-              subTitle: $r('app.string.setting_vnc_port_mode_desc'),
-              content: () => {
-                this.buildVncPortMode()
-              }
-            })
-            SettingItem({
-              title: $r('app.string.setting_vnc_port'),
-              subTitle: $r('app.string.setting_vnc_port_desc'),
-              content: () => {
-                this.buildVncPort()
               }
             })
           }
@@ -774,26 +688,5 @@ export default struct SettingsContent {
       message: value ? '已开启跟随系统颜色' : '已关闭跟随系统颜色',
       duration: 3000
     })
-  }
-
-  async saveVncEnabled() {
-    await savePreference(appOption.vncEnabled, this.vncEnabled, this.getUIContext())
-  }
-
-  showVncRestartToast() {
-    this.getUIContext().getPromptAction().showToast({
-      message: $r('app.string.setting_vnc_restart_hint'),
-      duration: 3000
-    })
-  }
-
-  async saveVncPortMode() {
-    await savePreference(appOption.vncPortMode, this.vncPortMode, this.getUIContext())
-    this.showVncRestartToast()
-  }
-
-  async saveVncPort() {
-    await savePreference(appOption.vncPort, this.vncPort, this.getUIContext())
-    this.showVncRestartToast()
   }
 }

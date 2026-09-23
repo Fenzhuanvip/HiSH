@@ -140,21 +140,18 @@ function createTerminal() {
     }
 
     var options = {
-        cursorBlink: false, // PERF: 默认关闭省电
+        cursorBlink: true,
         allowProposedApi: true, // Needed for some addons
         allowTransparency: true, // User preference: Transparency supported
         fontFamily: 'monospace, "Droid Sans Mono", "Courier New", "Courier", monospace',
         fontSize: 14, // Default, will be overridden by native.getFontSize()
         theme: {
-            background: '#0D0D12', foreground: '#E0E0E0', cursor: '#A78BFA', cursorAccent: '#0D0D12',
-            selection: 'rgba(167, 139, 250, 0.2)',
-            black: '#0D0D12', red: '#F472B6', green: '#34D399', yellow: '#FBBF24',
-            blue: '#60A5FA', magenta: '#A78BFA', cyan: '#22D3EE', white: '#E0E0E0',
-            brightBlack: '#666680', brightRed: '#F9A8D4', brightGreen: '#6EE7B7', brightYellow: '#FCD34D',
-            brightBlue: '#93C5FD', brightMagenta: '#C4B5FD', brightCyan: '#67E8F9', brightWhite: '#F5F5F5'
+            background: 'rgba(0, 0, 0, 0)', // Transparent by default to show effects behind
+            foreground: '#ffffff',
+            cursor: '#ffffff'
         },
         screenReaderMode: false, // Disabled to fix touch scrolling issues (was conflicting with native selection)
-        scrollback: 2000, // [Optimization] Limit scrollback to 3000 lines (Ring Buffer) to prevent memory overflow
+        scrollback: 3000, // [Optimization] Limit scrollback to 3000 lines (Ring Buffer) to prevent memory overflow
     };
 
     term = new Terminal(options);
@@ -564,15 +561,6 @@ exports.setItalic = (enabled) => {
 exports.setBackgroundColor = (color) => {
     if (!color) return;
     document.body.style.backgroundColor = color;
-    // 暗夜紫主题 - 始终深色
-    term.options.theme = {
-        background: color, foreground: '#E0E0E0', cursor: '#A78BFA', cursorAccent: color,
-        selection: 'rgba(167, 139, 250, 0.2)',
-        black: '#0D0D12', red: '#F472B6', green: '#34D399', yellow: '#FBBF24',
-        blue: '#60A5FA', magenta: '#A78BFA', cyan: '#22D3EE', white: '#E0E0E0',
-        brightBlack: '#666680', brightRed: '#F9A8D4', brightGreen: '#6EE7B7', brightYellow: '#FCD34D',
-        brightBlue: '#93C5FD', brightMagenta: '#C4B5FD', brightCyan: '#67E8F9', brightWhite: '#F5F5F5'
-    };
 };
 
 exports.setBackgroundImage = (dataUrl) => {

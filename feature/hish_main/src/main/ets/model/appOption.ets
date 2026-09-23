@@ -34,9 +34,9 @@ class appOption {
   static terminalBackgroundImage = 'terminalBackgroundImage' // 背景图片文件名 (位于 filesDir/terminal_bg 下)
   static terminalBackgroundBlur = 'terminalBackgroundBlur'   // 背景高斯模糊半径 (px)
   static terminalFollowSystemColor = 'terminalFollowSystemColor'   // 终端背景色跟随系统颜色模式
-  static nvidiaApiKey = 'nvidiaApiKey'   // NVIDIA AI API Key
-  static nvidiaModel = 'nvidiaModel'     // NVIDIA AI 模型
   static terminalUserFonts = 'terminalUserFonts'   // 用户上传字体列表 (JSON: UserFont[])
+  static terminalCols = 'terminalCols'
+  static terminalRows = 'terminalRows'
   static appTempDir = 'appTempDir'
   static appFilesDir = 'appFilesDir'
   static vmBaseDir = 'vmBaseDir'
@@ -58,17 +58,11 @@ class appOption {
   static displayStatusBar = 'displayStatusBar';
   static showVirtKey = 'showVirtKey';
   static isPowerManagementOpen = 'isPowerManagementOpen';
-  static vncEnabled = 'vncEnabled';
-  static vncPortMode = 'vncPortMode'; // 'local' | 'lan'
-  static vncPort = 'vncPort';         // VNC port number (e.g. 5900)
   // qemu-img 后台任务状态
   static qemuImgTaskRunning = 'qemuImgTaskRunning';
   static qemuImgTaskDescription = 'qemuImgTaskDescription';
   // QGA 连接状态 (Global Truth)
   static isQgaConnected = 'isQgaConnected';
-  // ===== AI 工作台（GitCode/atomgit 集成）=====
-  static aiWorkbenchVisible = 'aiWorkbenchVisible'; // AI 工作台是否显示（phone 切换）
-  static gitcodeToken = 'gitcodeToken';             // GitCode（atomgit）Personal Access Token
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {

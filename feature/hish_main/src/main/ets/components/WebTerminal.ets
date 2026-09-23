@@ -6,7 +6,7 @@ import { webview } from '@kit.ArkWeb';
 import { pasteboard, deviceInfo } from '@kit.BasicServicesKit'
 import appOption, { CursorShape, savePreference, UserFont, UserFontData } from '../model/appOption';
 import { common } from '@kit.AbilityKit';
-import { SymbolGlyphModifier, mediaquery } from '@kit.ArkUI';
+import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import fileToDataUrl from '../lib/fileToDataUrl';
 import { ImmersiveButtonModifier, ImmersiveToggleModifier } from '../lib/immersiveButton';
@@ -38,7 +38,6 @@ export default struct WebTerminal {
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
-  @StorageProp(appOption.vncEnabled) vncEnabled: boolean = false
   @Watch('onLigaturesChanged') @StorageProp(appOption.terminalLigatures) termLigatures: boolean = false
   @Watch('onItalicChanged') @StorageProp(appOption.terminalItalic) termItalic: boolean = true
   @Watch('onBgColorChanged') @StorageProp(appOption.terminalBackgroundColor) termBgColor: string = '#000000'
@@ -52,7 +51,6 @@ export default struct WebTerminal {
   @State keyFontColor: string = '#ffffff'
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
-  private colorModeListener?: mediaquery.MediaQueryListener = undefined
 
   @Builder
   contextMenu(webController: WebviewController) {
@@ -174,24 +172,7 @@ export default struct WebTerminal {
   }
 
   private settingsButtonOptions(): MenuElement[] {
-    const vncOptions: MenuElement[] = this.vncEnabled ? [{
-      value: $r('app.string.vnc_console_title'),
-      action: () => {
-        const vncEnabled = AppStorage.get<boolean>(appOption.vncEnabled)!!
-        if (vncEnabled) {
-          this.getUIContext().getRouter().pushUrl({
-            url: 'pages/VncPage'
-          });
-        } else {
-          this.getUIContext().getPromptAction().showToast({ message: $r('app.string.vnc_service_not_started') });
-        }
-      }
-    }] : []
-    const regularOptions: MenuElement[] = [{
-      value: 'codearts',
-      symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
-      action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/AiWorkbenchPage' })
-    }, {
+    return [{
       value: $r('app.string.menu_emulator_management'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.more')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/EmulatorManagementPage' })
@@ -203,8 +184,7 @@ export default struct WebTerminal {
       value: $r('app.string.menu_settings'),
       symbolIcon: new SymbolGlyphModifier($r('sys.symbol.gearshape')).fontSize($r('sys.float.Title_S')),
       action: () => this.getUIContext().getRouter().pushUrl({ url: 'pages/SettingsPage' })
-    }]
-    return [...vncOptions, ...regularOptions];
+    }];
   }
 
   @Builder
@@ -254,7 +234,7 @@ export default struct WebTerminal {
           }
         }`
         })
-        .backgroundColor('#1A1B2E')
+        .backgroundColor(this.termBgColor)
         .layoutWeight(1)
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
       if (this.virtKeyEnabled) {
@@ -276,7 +256,7 @@ export default struct WebTerminal {
         .height(16)
         .fontSize(16)
         .borderRadius(VKeyRadius)
-        .fontColor('#444')
+        .fontColor(this.keyFontColor)
         .padding({ left: VKeyPadding, right: VKeyPadding })
         .attributeModifier(this.immersiveButton)
         .onClick(() => {
@@ -404,6 +384,10 @@ export default struct WebTerminal {
     napi.onShutdown((): void => {
       void this.onShutdown()
     })
+    napi.onBrowserRequest((url: string): void => {
+      this.getUIContext().getRouter().pushUrl({ url: 'pages/BrowserPage', params: { url: url } })
+    })
+    napi.startBrowserServer(8889)
     const vmStatus = AppStorage.get(appOption.currentEmulatorStatus) as string | undefined
     if (vmStatus === 'ABNORMAL') {
       const message = this.getUIContext().getHostContext()?.resourceManager.getStringByNameSync('pm_status_qmp_connect_failed')
@@ -639,29 +623,4 @@ export default struct WebTerminal {
     }
   }
 
-  aboutToAppear() {
-    try {
-      const mq = this.getUIContext().getMediaQuery()
-      const listener = mq.matchMediaSync('(prefers-color-scheme: dark)')
-      this.colorModeListener = listener
-      const applySystemColor = (): void => {
-        AppStorage.setOrCreate(appOption.terminalBackgroundColor, '#000000')
-      }
-      listener.on('change', applySystemColor)
-      applySystemColor()
-    } catch (e) {
-      hilog.error(DOMAIN, 'WebTerminal', 'mediaquery init failed: %{public}s', JSON.stringify(e))
-    }
   }
-
-  aboutToDisappear() {
-    try {
-      if (this.colorModeListener) {
-        this.colorModeListener.off('change')
-        this.colorModeListener = undefined
-      }
-    } catch (e) {
-      hilog.error(DOMAIN, 'WebTerminal', 'mediaquery cleanup failed: %{public}s', JSON.stringify(e))
-    }
-  }
-}

@@ -34,10 +34,6 @@ const CANDIDATES: MappingCandidate[] = [{
   guest: 3389,
   host: 3389
 }, {
-  name: 'VNC',
-  guest: 5900,
-  host: 5900
-}, {
   name: 'SMB',
   guest: 445,
   host: 1445

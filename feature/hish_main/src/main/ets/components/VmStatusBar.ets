@@ -394,6 +394,12 @@ export struct VmStatusBar {
         return
       }
 
+      const cols = AppStorage.get<number>(appOption.terminalCols) ?? 0
+      const rows = AppStorage.get<number>(appOption.terminalRows) ?? 0
+      if (cols >= 2 && rows >= 1) {
+        await agent.setTtySize(cols, rows)
+      }
+
       // 如果当前状态是异常或重启中，连接成功后自动恢复为 RUNNING
       const currentStatus = this.currentEmulatorStatus
       if (currentStatus === 'ABNORMAL' || currentStatus === 'REBOOTING') {

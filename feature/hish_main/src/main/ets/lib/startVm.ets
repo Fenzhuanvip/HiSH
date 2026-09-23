@@ -17,9 +17,6 @@ interface VmOptions {
   qgaUnixSocket: string
   sharedFolderReadonly: boolean
   init: string,
-  vncEnabled: boolean
-  vncPortMode: string  // 'local' | 'lan'
-  vncPort: number      // VNC port number (e.g. 5900)
 }
 
 function startVm(options: VmOptions): boolean {
@@ -41,7 +38,7 @@ function startVm(options: VmOptions): boolean {
   const network = ["-global", "virtio-net-pci.ctrl_guest_offloads=off", "-global", "virtio-net-pci.packed=on",
     "-device", "virtio-net-pci-non-transitional," +
     "netdev=eth0,csum=on,gso=on,guest_tso4=on,guest_tso6=on,guest_ecn=off,mrg_rxbuf=on,tx=bh",
-    '-netdev', "user,id=eth0" + options.portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('')]
+    '-netdev', "user,id=eth0" + options.portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('') + ",hostfwd=tcp::8889-:8889"]
   const shared =
     ["-fsdev", "local,security_model=mapped-file,id=fsdev0,path=" + options.sharedFolder + sharedFolderOption,
     "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"]
@@ -72,13 +69,6 @@ function startVm(options: VmOptions): boolean {
     ["-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
       "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"]
 
-  const vnc: string[] = options.vncEnabled ? [
-    '-vnc', `${options.vncPortMode === 'lan' ? '0.0.0.0' : '127.0.0.1'}:${options.vncPort - 5900}`,
-    '-device', 'virtio-gpu-pci',
-    '-device', 'virtio-keyboard-pci',
-    '-device', 'virtio-tablet-pci'
-  ] : []
-
   const args = [
     'qemu-system-aarch64',
     ...basic,
@@ -91,7 +81,6 @@ function startVm(options: VmOptions): boolean {
     ...kernelParam,
     ...monitor,
     ...qga,
-    ...vnc,
     ...sharedUserFolder
   ]
 

@@ -19,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: true
+          submodules: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -33,10 +33,7 @@ jobs:
           LIBS_DIR="feature/hish_main/libs"
           mkdir -p "$VM_DIR" "$LIBS_DIR"
 
-          # libvncserver 通过 git submodule 获取（checkout 时已初始化）
-          # kernel/rootfs/libs 从 GitHub releases 下载（见下方 fallback）
-
-          # 备用下载源
+          # kernel/rootfs/libs 从 GitHub releases 下载
           if [ ! -f "$VM_DIR/kernel_aarch64" ]; then
             wget -q --show-progress \
               https://github.com/harmoninux/linux-config/releases/download/kernel-20260228/kernel_aarch64 \

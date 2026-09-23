@@ -509,6 +509,26 @@ export class QemuAgent {
   }
 
   /**
+   * 通过 TIOCSWINSZ 同步客户机控制台窗口大小。
+   * QEMU unix serial 不是宿主机 PTY，内核不会自动更新 ttyAMA0 的 winsize；
+   * 列/行为 0 时，CLI 智能体按 TIOCGWINSZ 开 PTY，命令输出会被当成空。
+   */
+  async setTtySize(cols: number, rows: number): Promise<boolean> {
+    const c = Math.floor(cols)
+    const r = Math.floor(rows)
+    if (c < 2 || r < 1 || c > 512 || r > 256) {
+      return false
+    }
+    const script =
+      `python3 -c "import fcntl,termios,struct,os;fd=os.open('/dev/ttyAMA0',os.O_RDWR|os.O_NOCTTY);fcntl.ioctl(fd,termios.TIOCSWINSZ,struct.pack('HHHH',${r},${c},0,0));os.close(fd)" 2>/dev/null || ` +
+      `stty -F /dev/ttyAMA0 cols ${c} rows ${r} 2>/dev/null || ` +
+      `stty cols ${c} rows ${r} < /dev/ttyAMA0 2>/dev/null || ` +
+      `stty -F /dev/console cols ${c} rows ${r} 2>/dev/null; true`
+    const output = await this.execAndGetOutput('/bin/sh', ['-c', script], 3000)
+    return output !== null
+  }
+
+  /**
    * 杀死虚拟机内的进程
    */
   async kill(pid: number, signal: number = 15): Promise<boolean> {

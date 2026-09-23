@@ -273,42 +273,6 @@
       "value": "Terminal Background"
     },
     {
-      "name": "setting_vnc",
-      "value": "VNC"
-    },
-    {
-      "name": "setting_enable_vnc",
-      "value": "Enable VNC"
-    },
-    {
-      "name": "setting_vnc_restart_hint",
-      "value": "Takes effect after restarting the app"
-    },
-    {
-      "name": "setting_vnc_port_mode",
-      "value": "VNC listen mode"
-    },
-    {
-      "name": "setting_vnc_port_mode_desc",
-      "value": "Local only or LAN"
-    },
-    {
-      "name": "setting_vnc_port_mode_local",
-      "value": "Local"
-    },
-    {
-      "name": "setting_vnc_port_mode_lan",
-      "value": "LAN"
-    },
-    {
-      "name": "setting_vnc_port",
-      "value": "VNC port"
-    },
-    {
-      "name": "setting_vnc_port_desc",
-      "value": "Port range 5900-5999, takes effect after restart"
-    },
-    {
       "name": "failed_to_force_background",
       "value": "Simulated background location failed. Please grant the app location permission and enable location in system settings"
     },
@@ -673,20 +637,12 @@
       "value": "Power Management"
     },
     {
-      "name": "vnc_service_not_started",
-      "value": "VNC service not started"
-    },
-    {
       "name": "btn_add",
       "value": "Add"
     },
     {
       "name": "edit_emulator_title",
       "value": "Edit Emulator"
-    },
-    {
-      "name": "vnc_console_title",
-      "value": "VNC Console"
     },
     {
       "name": "guide_basic_title",
@@ -1499,6 +1455,10 @@
     {
       "name": "option_60s",
       "value": "60s"
+    },
+    {
+      "name": "menu_browser",
+      "value": "Browser"
     },
     {
       "name": "menu_emulator_management",
