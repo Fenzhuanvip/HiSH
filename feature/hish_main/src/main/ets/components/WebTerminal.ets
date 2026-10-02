@@ -410,7 +410,7 @@ export default struct WebTerminal {
   // 性能优化：输出缓冲区
   private pendingChunks: Uint8Array[] = [];
   private flushTimeoutID: number | undefined = undefined;
-  private readonly FLUSH_INTERVAL = 16; // 60FPS (16.6ms)
+  private readonly FLUSH_INTERVAL = 4; // 250FPS，平衡流畅度与性能
 
   private onData(ab: ArrayBuffer) {
     try {
@@ -451,15 +451,12 @@ export default struct WebTerminal {
       // 清空缓冲区
       this.pendingChunks = [];
 
-      // 3. 检测清屏信号
-      // 检查合并后的数据是否包含 \x1b[H\x1b[J 的字面量转义序列
-      if (merged.length >= 12 &&
-        merged[0] === 0x5C && merged[1] === 0x78 && merged[2] === 0x31 && merged[3] === 0x62 && // \x1b
-        merged[4] === 0x5B && merged[5] === 0x48 && // [H
-        merged[6] === 0x5C && merged[7] === 0x78 && merged[8] === 0x31 && merged[9] === 0x62 && // \x1b
-        merged[10] === 0x5B && merged[11] === 0x4A // [J
+      // 3. 检测清屏信号（原始字节 \x1b[H\x1b[J）
+      if (merged.length >= 6 &&
+        merged[0] === 0x1b && merged[1] === 0x5b && merged[2] === 0x48 &&
+        merged[3] === 0x1b && merged[4] === 0x5b && merged[5] === 0x4a
       ) {
-        const clearCmd = '\\x1b[3J';
+        const clearCmd = '\x1b[3J';
         const encoder = util.TextEncoder.create('utf-8');
         const clearBytes = encoder.encodeInto(clearCmd);
         const clearBase64 = new util.Base64Helper().encodeToStringSync(clearBytes);

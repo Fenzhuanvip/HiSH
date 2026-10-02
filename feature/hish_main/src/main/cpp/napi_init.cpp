@@ -18,6 +18,8 @@
 #include <sys/wait.h>
 #include <sys/prctl.h>
 #include <thread>
+#include <vector>
+#include <chrono>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -830,6 +832,7 @@ static void call_on_shutdown_callback(napi_env env, napi_value js_callback, void
 
 std::string convert_to_hex(const uint8_t *buffer, int r) {
     std::string hex;
+    hex.reserve(r * 4);
     for (int i = 0; i < r; i++) {
         if (buffer[i] >= 127 || buffer[i] < 32) {
             char temp[8];
@@ -846,19 +849,20 @@ std::string convert_to_hex(const uint8_t *buffer, int r) {
     return hex;
 }
 
-void send_data_to_callback(const std::string &hex, napi_threadsafe_function callback) {
-    data_buffer *pbuf = new data_buffer{.buf = new char[hex.length()], .size = (size_t)hex.length()};
-    memcpy(pbuf->buf, &hex[0], hex.length());
+void send_data_to_callback(const uint8_t *data, size_t len, napi_threadsafe_function callback) {
+    if (len == 0) return;
+    data_buffer *pbuf = new data_buffer{.buf = new char[len], .size = len};
+    memcpy(pbuf->buf, data, len);
     napi_call_threadsafe_function(callback, pbuf, napi_tsfn_nonblocking);
 }
 
-void on_serial_data_received(const std::string &hex) {
-    if (hex.length() > 0) {
+void on_serial_data_received(const uint8_t *data, size_t len) {
+    if (len > 0) {
         std::lock_guard<std::mutex> lk(buffer_mtx);
         if (on_data_callback != nullptr) {
-            send_data_to_callback(hex, on_data_callback);
+            send_data_to_callback(data, len, on_data_callback);
         } else {
-            temp_buffer.append(hex);
+            temp_buffer.append((const char *)data, len);
         }
     }
 }
@@ -907,12 +911,21 @@ void serial_output_worker(const char *unix_socket_path) {
 
     OH_LOG_INFO(LOG_APP, "Connected to unix socket: %{public}d", serial_input_fd);
 
+    // 性能优化：输出合并缓冲区，攒到 4KB 或 5ms 再 TSFN，减少 JS 调用次数
+    const size_t MERGE_THRESHOLD = 4096;
+    const int FLUSH_TIMEOUT_MS = 5;
+    std::vector<uint8_t> mergeBuf;
+    mergeBuf.reserve(MERGE_THRESHOLD);
+    auto last_flush = std::chrono::steady_clock::now();
+
     while (true) {
 
         struct pollfd fds[1];
         fds[0].fd = client_fd;
         fds[0].events = POLLIN;
-        int res = poll(fds, 1, 100);
+        // 缓冲区有数据时用短超时让更多数据进来，否则用 100ms
+        int timeout = mergeBuf.empty() ? 100 : FLUSH_TIMEOUT_MS;
+        int res = poll(fds, 1, timeout);
 
         // poll 被信号中断：重试
         if (res < 0) {
@@ -922,8 +935,13 @@ void serial_output_worker(const char *unix_socket_path) {
             OH_LOG_INFO(LOG_APP, "poll failed: %{public}d", errno);
             break;
         }
-        // 超时：无数据，继续等待
+        // 超时：有数据就 flush，无数据继续等待
         if (res == 0) {
+            if (!mergeBuf.empty()) {
+                on_serial_data_received(mergeBuf.data(), mergeBuf.size());
+                mergeBuf.clear();
+                last_flush = std::chrono::steady_clock::now();
+            }
             continue;
         }
 
@@ -933,13 +951,24 @@ void serial_output_worker(const char *unix_socket_path) {
         }
 
         uint8_t buffer[1024];
-        ssize_t r = read(client_fd, buffer, sizeof(buffer) - 1);
+        ssize_t r = read(client_fd, buffer, sizeof(buffer));
         if (r > 0) {
-            // pretty print
-            auto hex = convert_to_hex(buffer, r);
-            //  call callback registered by ArkTS
-            on_serial_data_received(hex);
-            OH_LOG_INFO(LOG_APP, "Received, data: %{public}s", hex.c_str());
+            mergeBuf.insert(mergeBuf.end(), buffer, buffer + r);
+            // 达到阈值立即发送
+            if (mergeBuf.size() >= MERGE_THRESHOLD) {
+                on_serial_data_received(mergeBuf.data(), mergeBuf.size());
+                mergeBuf.clear();
+                last_flush = std::chrono::steady_clock::now();
+            } else {
+                // 时间阈值：超过 5ms 也 flush，避免小 chunk 积压导致卡顿
+                auto now = std::chrono::steady_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_flush).count();
+                if (elapsed >= FLUSH_TIMEOUT_MS) {
+                    on_serial_data_received(mergeBuf.data(), mergeBuf.size());
+                    mergeBuf.clear();
+                    last_flush = now;
+                }
+            }
         } else if (r < 0) {
             // read 被信号中断：重试，而不是误判为程序退出
             if (errno == EINTR) {
@@ -1117,7 +1146,7 @@ static napi_value onData(napi_env env, napi_callback_info info) {
     {
         std::lock_guard<std::mutex> lk(buffer_mtx);
         if (!temp_buffer.empty()) {
-            send_data_to_callback(temp_buffer, data_callback);
+            send_data_to_callback((const uint8_t*)temp_buffer.data(), temp_buffer.size(), data_callback);
             temp_buffer.clear();
         }
         on_data_callback = data_callback;
