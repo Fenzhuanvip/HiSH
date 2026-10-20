@@ -486,7 +486,7 @@ exports.writeBase64 = (base64Data, applicationMode) => {
 
 exports.paste = (data) => {
     if (native && native.sendInput) {
-        // If data is already binary string (UTF-8 bytes as chars), just send it.
+        // data: proper Unicode string (paste path); ArkTS sendInput performs the single UTF-8 encode
         native.sendInput(data);
     }
 };

@@ -74,9 +74,9 @@ export default struct WebTerminal {
             let board = pasteboard.getSystemPasteboard();
             const data = await board.getData()
             const text = data.getPrimaryText()
-            const array = util.TextEncoder.create().encodeInto(text)
-            const base64 = new util.Base64Helper().encodeToStringSync(array)
-            webController.runJavaScript(`exports.paste(atob('${base64}'))`)
+            // 直传 Unicode 文本(JSON 转义),由 sendInput 做唯一一次 UTF-8 编码,
+            // 修复原 base64+atob 二进制字符串被二次编码导致的非 ASCII(中文)乱码
+            webController.runJavaScript(`exports.paste(${JSON.stringify(text)})`)
           }
         })
         .fontColor(this.keyFontColor)
@@ -384,10 +384,6 @@ export default struct WebTerminal {
     napi.onShutdown((): void => {
       void this.onShutdown()
     })
-    napi.onBrowserRequest((url: string): void => {
-      this.getUIContext().getRouter().pushUrl({ url: 'pages/BrowserPage', params: { url: url } })
-    })
-    napi.startBrowserServer(8889)
     const vmStatus = AppStorage.get(appOption.currentEmulatorStatus) as string | undefined
     if (vmStatus === 'ABNORMAL') {
       const message = this.getUIContext().getHostContext()?.resourceManager.getStringByNameSync('pm_status_qmp_connect_failed')
