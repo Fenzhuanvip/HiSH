@@ -36,7 +36,7 @@ jobs:
           # kernel/rootfs/libs 从 GitHub releases 下载
           if [ ! -f "$VM_DIR/kernel_aarch64" ]; then
             wget -q --show-progress \
-              https://github.com/harmoninux/linux-config/releases/download/kernel-20260228/kernel_aarch64 \
+              https://github.com/harmoninux/linux-config/releases/download/kernel-20260321/kernel_aarch64 \
               -O "$VM_DIR/kernel_aarch64"
           fi
           if [ ! -f "$VM_DIR/rootfs_aarch64.qcow2" ]; then
