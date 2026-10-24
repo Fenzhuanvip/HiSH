@@ -171,7 +171,7 @@ struct PcIndex {
       .height(48)
       .padding({
         left: 15,
-        right: 150,
+        right: 15,
       })
 
       WebTerminal({ virtKeyEnabled: false })
