@@ -225,7 +225,7 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.rootFilesystems, rootFilesystems)
 
     const codeartsUrl = await appPref.get(appOption.codeartsUrl,
-      'https://developer.huaweicloud.com/codeartsco.html') as string;
+      'https://www.huaweicloud.com') as string;
     AppStorage.setOrCreate(appOption.codeartsUrl, codeartsUrl);
     const codeartsDarkInject = await appPref.get(appOption.codeartsDarkInject, true) as boolean;
     AppStorage.setOrCreate(appOption.codeartsDarkInject, codeartsDarkInject);

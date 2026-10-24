@@ -47,7 +47,7 @@ interface CodeBlockItem {
 
 @Component
 export struct CodeArtsWeb {
-  @StorageProp(appOption.codeartsUrl) url: string = 'https://developer.huaweicloud.com/codeartsco.html'
+  @StorageProp(appOption.codeartsUrl) url: string = 'https://www.huaweicloud.com'
   @StorageProp(appOption.codeartsDarkInject) darkInject: boolean = true
   @StorageProp(appOption.sharedHost) sharedHost: string = ''
   @StorageProp(appOption.codeartsDrawerOpen) @Watch('onOpenChanged') drawerOpen: boolean = false
