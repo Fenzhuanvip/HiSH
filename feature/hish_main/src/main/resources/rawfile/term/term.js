@@ -256,12 +256,18 @@ window.onload = function () {
 
                 // If fit failed (size 0), force a default size
                 if (term.cols < 2 || term.rows < 2) {
-                    term.resize(80, 24);
-                    console.log("Forced resize to 80x24");
+                    var cw = document.getElementById('terminal-container');
+                    var w = (cw && cw.clientWidth) || window.innerWidth || 800;
+                    var h = (cw && cw.clientHeight) || window.innerHeight || 600;
+                    var estCols = Math.max(Math.floor(w / 7.5), 80);
+                    var estRows = Math.max(Math.floor(h / 15), 24);
+                    term.resize(estCols, estRows);
+                    console.log("Estimated size: " + estCols + "x" + estRows + " (container: " + w + "x" + h + ")");
                 }
             } catch (e) {
                 console.error("Fit failed", e);
-                term.resize(80, 24); // Fallback
+                var w2 = window.innerWidth || 800; var h2 = window.innerHeight || 600;
+                    term.resize(Math.max(Math.floor(w2 / 7.5), 80), Math.max(Math.floor(h2 / 15), 24)); // Estimate from screen
             }
 
             // 3b. Re-fit once web fonts are ready. Bundled fonts (woff2) load
@@ -605,6 +611,9 @@ exports.fit = () => {
     if (term) {
         try {
             fitAddon.fit();
+            if (term.cols < 2) {
+                setTimeout(function () { try { fitAddon.fit() } catch (e2) {} }, 500);
+            }
         } catch (e) {
             console.error('exports.fit failed', e);
         }
