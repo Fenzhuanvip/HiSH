@@ -59,7 +59,7 @@
         "exported": true,
         "orientation": "auto_rotation_restricted",
         "backgroundModes": [
-          "location"
+          "multiProcess"
         ],
         "skills": [
           {
