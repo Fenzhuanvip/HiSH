@@ -611,22 +611,9 @@ exports.fit = () => {
     if (term) {
         try {
             fitAddon.fit();
-            if (term.cols < 2) {
-                setTimeout(function () { try { fitAddon.fit() } catch (e2) {} }, 500);
-            }
         } catch (e) {
             console.error('exports.fit failed', e);
         }
-    }
-};
-
-exports.setCursorShape = (shape) => {
-    // hterm: BLOCK, BEAM, UNDERLINE
-    // xterm: block, bar, underline
-    switch (shape) {
-        case 'BEAM': term.options.cursorStyle = 'bar'; break;
-        case 'UNDERLINE': term.options.cursorStyle = 'underline'; break;
-        default: term.options.cursorStyle = 'block'; break;
     }
 };
 
