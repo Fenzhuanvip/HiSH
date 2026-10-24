@@ -18,7 +18,7 @@ async function startContinuousTask(context: common.UIAbilityContext) {
   };
   const wantAgentObj = await wantAgent.getWantAgent(wantAgentInfo)
   await backgroundTaskManager.startBackgroundRunning(
-    context, backgroundTaskManager.BackgroundMode.MULTI_PROCESS, wantAgentObj)
+    context, backgroundTaskManager.BackgroundMode.TASK_KEEPING, wantAgentObj)
 }
 
 async function stopContinuousTask(context: common.UIAbilityContext) {

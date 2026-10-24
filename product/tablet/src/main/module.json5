@@ -60,7 +60,7 @@
         "exported": true,
         "orientation": "auto_rotation_restricted",
         "backgroundModes": [
-          "multiProcess"
+          "taskKeeping"
         ],
         "skills": [
           {
