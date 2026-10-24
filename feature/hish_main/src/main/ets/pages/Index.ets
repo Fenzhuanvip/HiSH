@@ -175,6 +175,7 @@ struct PcIndex {
       })
 
       WebTerminal({ virtKeyEnabled: false })
+        .width('100%')
         .layoutWeight(1)
     }
     .width("100%")
@@ -331,6 +332,7 @@ struct PhoneOrTablet {
     Stack({ alignContent: Alignment.TopEnd }) {
     Column() {
       WebTerminal({ virtKeyEnabled: true })
+        .width('100%')
         .layoutWeight(1)
     }
     .width('100%')
