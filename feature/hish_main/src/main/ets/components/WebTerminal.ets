@@ -258,6 +258,13 @@ export default struct WebTerminal {
         })
         .backgroundColor(this.termBgColor)
         .layoutWeight(1)
+        .onAreaChange((oldArea: Area, newArea: Area) => {
+          // Web 组件尺寸变化（转屏/分屏/抽屉/键盘）时让 JS 端重算行列数，
+          // 防止窗口变宽后终端仍按旧宽度渲染、右侧留黑边
+          if (oldArea.width !== newArea.width || oldArea.height !== newArea.height) {
+            this.webviewController.runJavaScript('typeof exports !== "undefined" && exports.fit && exports.fit()')
+          }
+        })
         .bindContextMenu(this.contextMenu(this.webviewController), ResponseType.RightClick)
       if (this.virtKeyEnabled) {
         if (this.showVirtKey) {
