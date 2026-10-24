@@ -354,7 +354,6 @@ export default struct WebTerminal {
           this.buildVKey('PGDN', NormalKeySequences.PGDN);
           this.buildVKey('←', NormalKeySequences.LEFT, NormalKeySequences.LEFT_APP);
           this.buildVKey('↓', NormalKeySequences.DOWN, NormalKeySequences.DOWN_APP);
-          this.codeartsButton();
           this.buildVKey('→', NormalKeySequences.RIGHT, NormalKeySequences.RIGHT_APP);
           this.hideVKeyButton();
         }
