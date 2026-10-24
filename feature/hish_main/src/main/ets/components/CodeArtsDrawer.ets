@@ -15,7 +15,7 @@ export struct CodeArtsDrawer {
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
 
   build() {
-    Stack({ alignContent: Alignment.TopEnd }) {
+    Stack({ alignContent: Alignment.TopStart }) {
       CodeArtsWeb()
         .width('100%').height('100%')
 
@@ -25,7 +25,7 @@ export struct CodeArtsDrawer {
           .fontColor([CodeArtsColor.textSub])
       }
       .width(32).height(32)
-      .margin({ top: 8, right: 8 })
+      .margin({ top: 8, left: 8 })
       .backgroundColor('#1A1B2ECC')
       .borderRadius(16)
       .attributeModifier(this.immersiveButton)
