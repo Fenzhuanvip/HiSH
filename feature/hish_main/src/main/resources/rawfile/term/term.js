@@ -264,6 +264,20 @@ window.onload = function () {
                 term.resize(80, 24); // Fallback
             }
 
+            // 3b. Re-fit once web fonts are ready. Bundled fonts (woff2) load
+            //     asynchronously; the fit above may have measured a fallback
+            //     font and computed the wrong column count, leaving a blank
+            //     strip on the right. document.fonts.ready resolves when all
+            //     pending fonts have loaded (or failed).
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(function () {
+                    try {
+                        fitAddon.fit();
+                        console.log(`Terminal size after font-ready fit: ${term.cols}x${term.rows}`);
+                    } catch (e) { /* ignore */ }
+                }).catch(function () { /* ignore */ });
+            }
+
             // 4. Load WebGL (unavailable in this DOM-renderer-only build)
             if (shouldEnableWebGL) {
                 try {
@@ -433,6 +447,30 @@ function setupEventListeners() {
         setTimeout(() => fitAddon.fit(), 100);
     });
 
+    // 4b. Observe container size changes that do NOT fire window resize
+    //     (ArkUI layout changes, drawer/panel animations, soft keyboard).
+    //     Guards against the terminal being too narrow: whenever the
+    //     container grows/shrinks by more than 1px, re-fit.
+    var termContainer = document.getElementById('terminal-container');
+    if (termContainer && typeof ResizeObserver !== 'undefined') {
+        var lastFitW = -1;
+        var lastFitH = -1;
+        var ro = new ResizeObserver(function (entries) {
+            var entry = entries && entries[0];
+            var w = entry ? entry.contentRect.width : termContainer.clientWidth;
+            var h = entry ? entry.contentRect.height : termContainer.clientHeight;
+            if (Math.abs(w - lastFitW) <= 1 && Math.abs(h - lastFitH) <= 1) return;
+            lastFitW = w;
+            lastFitH = h;
+            setTimeout(function () {
+                try {
+                    fitAddon.fit();
+                } catch (e) { /* ignore */ }
+            }, 50);
+        });
+        ro.observe(termContainer);
+    }
+
     // 5. Prevent default browser behaviors that might interfere
     document.addEventListener('keydown', (e) => {
         // Allow some system shortcuts if needed, but generally intercept
@@ -559,6 +597,18 @@ exports.setFontFamily = (family) => {
         term.resize(term.cols, term.rows);
     }
     fitAddon.fit();
+};
+
+// Exposed for the ArkTS host (WebTerminal.ets onAreaChange) to request a
+// re-fit when the Web component's area changes outside this page's control.
+exports.fit = () => {
+    if (term) {
+        try {
+            fitAddon.fit();
+        } catch (e) {
+            console.error('exports.fit failed', e);
+        }
+    }
 };
 
 exports.setCursorShape = (shape) => {
