@@ -310,7 +310,6 @@ export default struct WebTerminal {
           this.buildVKey('F4', FunctionKeySequences.F4);
           this.buildVKey('F5', FunctionKeySequences.F5);
           this.buildVKey('F6', FunctionKeySequences.F6);
-          this.codeartsButton();
           this.settingsButton();
         }
         .margin({ left: 5, right: 5 })
@@ -356,6 +355,7 @@ export default struct WebTerminal {
           this.buildVKey('PGDN', NormalKeySequences.PGDN);
           this.buildVKey('←', NormalKeySequences.LEFT, NormalKeySequences.LEFT_APP);
           this.buildVKey('↓', NormalKeySequences.DOWN, NormalKeySequences.DOWN_APP);
+          this.codeartsButton();
           this.buildVKey('→', NormalKeySequences.RIGHT, NormalKeySequences.RIGHT_APP);
           this.hideVKeyButton();
         }
