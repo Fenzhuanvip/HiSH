@@ -275,6 +275,7 @@ export default struct WebTerminal {
         }
       }
     }
+    .width('100%')
     .height('100%')
   }
 
