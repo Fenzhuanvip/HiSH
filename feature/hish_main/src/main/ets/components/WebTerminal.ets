@@ -340,7 +340,6 @@ export default struct WebTerminal {
           this.buildVKey('↑', NormalKeySequences.UP, NormalKeySequences.UP_APP);
           this.buildVKey('↵', '\r', '\r');
 
-          this.codeartsButton();
           this.settingsButton();
         }
         .margin({ left: 5, right: 5 })
