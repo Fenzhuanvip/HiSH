@@ -257,6 +257,7 @@ export default struct WebTerminal {
         }`
         })
         .backgroundColor(this.termBgColor)
+        .width('100%')
         .layoutWeight(1)
         .onAreaChange((oldArea: Area, newArea: Area) => {
           // Web 组件尺寸变化（转屏/分屏/抽屉/键盘）时让 JS 端重算行列数，
