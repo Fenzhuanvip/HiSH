@@ -310,6 +310,7 @@ export default struct WebTerminal {
           this.buildVKey('F4', FunctionKeySequences.F4);
           this.buildVKey('F5', FunctionKeySequences.F5);
           this.buildVKey('F6', FunctionKeySequences.F6);
+          this.codeartsButton();
           this.settingsButton();
         }
         .margin({ left: 5, right: 5 })
