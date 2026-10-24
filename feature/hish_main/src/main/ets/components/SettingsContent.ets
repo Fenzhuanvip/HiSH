@@ -58,6 +58,8 @@ export default struct SettingsContent {
   @Watch('saveDisplayStatusBar') @StorageProp(appOption.displayStatusBar) displayStatusBar: boolean = false
   @StorageProp('bundleInfo') bundleInfo?: bundleManager.BundleInfo = undefined
   @StorageProp('versionCode') versionCode: number = 0
+    })
+  })
   openSourceController: CustomDialogController = new CustomDialogController({
     builder: CustomContentDialog({
       primaryTitle: $r('app.string.open_source_license'),
@@ -457,6 +459,7 @@ export default struct SettingsContent {
           .attributeModifier(this.blockStyle)
 
 
+
         }
         .margin(10)
       }
@@ -682,6 +685,7 @@ export default struct SettingsContent {
   async saveDisplayStatusBar() {
     await savePreference(appOption.displayStatusBar, this.displayStatusBar, this.getUIContext())
   }
+
 
   showDisplayStatusBarToast(value: boolean) {
     this.getUIContext().getPromptAction().showToast({

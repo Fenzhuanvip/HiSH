@@ -315,7 +315,7 @@ export default struct EmulatorListGrid {
 
     const rootfs = item.rootFilesystem
     try {
-      fs.unlinkSync(rootfs)
+      await fs.unlink(rootfs)
     } catch (e) {
       hilog.info(1, "EmulatorManagement", "failed to delete %{public}s", rootfs)
     }

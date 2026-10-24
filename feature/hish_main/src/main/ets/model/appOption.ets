@@ -63,6 +63,10 @@ class appOption {
   static qemuImgTaskDescription = 'qemuImgTaskDescription';
   // QGA 连接状态 (Global Truth)
   static isQgaConnected = 'isQgaConnected';
+  // 云码道网页
+  static codeartsUrl = 'codeartsUrl';                 // 云码道网页地址
+  static codeartsDarkInject = 'codeartsDarkInject';   // 是否注入暗色
+  static codeartsDrawerOpen = 'codeartsDrawerOpen';   // 抽屉开合（运行时，不入 preference）
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {

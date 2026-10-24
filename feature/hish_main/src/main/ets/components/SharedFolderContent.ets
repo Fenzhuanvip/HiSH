@@ -11,6 +11,7 @@ import deleteDirectoryRecursive from '../lib/deleteDirectoryRecursive';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { SimpleWebView } from './SimpleWebView';
 import { BackButton } from './BackButton';
+import { BasicDataSource } from '../lib/basicDataSource';
 
 const DOMAIN = 0x0000
 
@@ -55,6 +56,7 @@ export struct SharedFolderContent {
   @Require @Prop host: string
   @Require @Prop guest: string
   @State files: Entry[] = []
+  private filesSource: BasicDataSource<Entry> = new BasicDataSource<Entry>()
   @State current: string[] = []
   @State tempFolderName: string = ''
   @State tempClipboard?: PasteContent = undefined
@@ -147,7 +149,7 @@ export struct SharedFolderContent {
         }
       }
 
-      ForEach(this.files, (item: Entry) => {
+      LazyForEach(this.filesSource, (item: Entry) => {
         ListItem() {
           Row() {
             SymbolGlyph(item.type === Type.Folder ?
@@ -619,31 +621,35 @@ export struct SharedFolderContent {
   private async refreshFileList() {
     const dir = this.current.join('/');
     const names = await fs.listFile(dir);
-    this.files = names
-      .filter(it => {
-        return it !== '.virtfs_metadata' && it !== '.virtfs_metadata_root'
-      })
-      .map((it) => {
-        const full = dir + '/' + it;
-        const stat = fs.statSync(full);
-        let type: Type;
-        if (stat.isDirectory()) {
-          type = Type.Folder
-        } else if (stat.isFile()) {
-          type = Type.File
-        } else {
-          type = Type.Unknown
-        }
-        const e = {
-          name: it,
-          type,
-          size: stat.size,
-          mtime: stat.mtime
-        } as Entry;
-        e.detail = formatDetail(e)
-        return e
-      })
-      .sort((a, b) => comparator(a, b));
+    // 用异步 stat 取元数据（避免逐个 statSync 阻塞 UI 线程）；并发拉取
+    const entries = await Promise.all(
+      names
+        .filter((it: string) => it !== '.virtfs_metadata' && it !== '.virtfs_metadata_root')
+        .map(async (it: string): Promise<Entry> => {
+          const full = dir + '/' + it;
+          let type: Type = Type.Unknown;
+          let size: number = 0;
+          let mtime: number = 0;
+          try {
+            const stat = await fs.stat(full);
+            if (stat.isDirectory()) {
+              type = Type.Folder
+            } else if (stat.isFile()) {
+              type = Type.File
+            }
+            size = stat.size
+            mtime = stat.mtime
+          } catch (e) {
+            hilog.info(DOMAIN, 'SharedFolderContent', 'stat failed: %{public}s', full)
+          }
+          const e = { name: it, type, size, mtime } as Entry;
+          e.detail = formatDetail(e)
+          return e
+        })
+    );
+    entries.sort((a, b) => comparator(a, b));
+    this.files = entries;
+    this.filesSource.setData(entries);
     this.scroller.scrollTo({ yOffset: 0, xOffset: 0 })
   }
 }

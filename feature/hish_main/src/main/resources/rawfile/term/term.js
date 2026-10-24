@@ -294,6 +294,53 @@ window.onload = function () {
                     console.error("Native object still missing after retries");
                     term.writeln('\r\nError: Native bridge failed to initialize.\r\n');
                 }
+
+                // High-throughput write port (structured clone, no base64/eval).
+                // Official delivery: ets calls controller.postMessage('__init_port__', [port], '*')
+                // and we receive the port via window message event.ports[0].
+                // Safety: native only switches to the port after our echo of its
+                // handshake string. Until then (and forever if the handshake
+                // fails) data keeps flowing via exports.writeBase64.
+                window.addEventListener('message', function (event) {
+                    try {
+                        if (event.data !== '__init_port__') return;
+                        var port = event.ports && event.ports[0];
+                        if (!port) return;
+                        var lastReportedAppMode = null;
+                        var reportAppMode = function () {
+                            try {
+                                var m = term.modes.applicationCursorKeysMode;
+                                if (m !== lastReportedAppMode) {
+                                    lastReportedAppMode = m;
+                                    if (window.native && native.setApplicationMode) {
+                                        native.setApplicationMode(m);
+                                    }
+                                }
+                            } catch (err) { /* ignore */ }
+                        };
+                        port.onmessage = function (e) {
+                            try {
+                                var d = e && e.data;
+                                if (typeof d === 'string') {
+                                    if (d === '__hish_port_ok__') {
+                                        port.postMessage('__hish_port_ok__'); // echo handshake
+                                        return;
+                                    }
+                                    term.write(d);
+                                    reportAppMode();
+                                } else if (d instanceof ArrayBuffer) {
+                                    term.write(new Uint8Array(d));
+                                    reportAppMode();
+                                }
+                            } catch (err) {
+                                console.error('port write failed', err);
+                            }
+                        };
+                        console.log('write port received, handshake armed');
+                    } catch (err) {
+                        console.error('port setup failed', err);
+                    }
+                });
             } catch (e) {
                 console.error("Error during init/load", e);
             }

@@ -317,7 +317,7 @@ export default struct RootfsManagementContent {
     this.roots.splice(i, 1)
 
     await this.saveRootFilesystems()
-    await fs.unlinkSync(path)
+    await fs.unlink(path)
   }
 
   async exportRootFilesystem(item: RootFilesystem) {
@@ -472,12 +472,17 @@ export default struct RootfsManagementContent {
   syncRootfsViewItems() {
     this.rootfsItems.splice(0, this.rootfsItems.length)
 
-    setTimeout(() => {
+    setTimeout(async () => {
       for (let i = 0; i < this.roots.length; i++) {
         const it = this.roots[i]
         const path = it.path
-        const stat = fs.statSync(path)
-        const sizeString = (stat.size / (1024 * 1024)).toFixed(1) + ' MB'
+        let sizeString = '-'
+        try {
+          const stat = await fs.stat(path)
+          sizeString = (stat.size / (1024 * 1024)).toFixed(1) + ' MB'
+        } catch (e) {
+          sizeString = '-'
+        }
         const virtualSize = readQcow2VirtualSize(path)
         let virtualSizeString: string;
         if (virtualSize === undefined) {

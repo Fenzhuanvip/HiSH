@@ -223,6 +223,13 @@ export default class EntryAbility extends UIAbility {
       JSON.parse(await appPref.get(appOption.rootFilesystems,
         JSON.stringify([defaultRootfs])) as string) as RootFilesystem[]
     AppStorage.setOrCreate(appOption.rootFilesystems, rootFilesystems)
+
+    const codeartsUrl = await appPref.get(appOption.codeartsUrl,
+      'https://developer.huaweicloud.com/codeartsco.html') as string;
+    AppStorage.setOrCreate(appOption.codeartsUrl, codeartsUrl);
+    const codeartsDarkInject = await appPref.get(appOption.codeartsDarkInject, true) as boolean;
+    AppStorage.setOrCreate(appOption.codeartsDarkInject, codeartsDarkInject);
+    AppStorage.setOrCreate(appOption.codeartsDrawerOpen, false);
   }
 
   private async extractKernelAndRootFilesystem(appContext: common.ApplicationContext): Promise<void> {

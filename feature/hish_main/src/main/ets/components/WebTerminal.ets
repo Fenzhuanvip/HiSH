@@ -48,6 +48,9 @@ export default struct WebTerminal {
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
   applicationMode: boolean = false
+  private writePort?: webview.WebMessagePort = undefined
+  private portReady: boolean = false
+  private portHandshakeTimer?: number = undefined
   @State keyFontColor: string = '#ffffff'
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
   immersiveToggle: ImmersiveToggleModifier = new ImmersiveToggleModifier()
@@ -171,6 +174,25 @@ export default struct WebTerminal {
     .bindMenu(this.settingsButtonOptions())
   }
 
+  @Builder
+  codeartsButton() {
+    Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
+      SymbolGlyph($r('sys.symbol.cloud'))
+        .fontSize(16)
+        .width(16).height(16)
+        .fontColor([this.keyFontColor])
+    }
+    .height(VKeyHeight)
+    .width(VKeyHeight)
+    .borderRadius(VKeyRadius)
+    .margin(VKeyMargin)
+    .attributeModifier(this.immersiveButton)
+    .onClick(() => {
+      const open = AppStorage.get(appOption.codeartsDrawerOpen) as boolean | undefined
+      AppStorage.setOrCreate(appOption.codeartsDrawerOpen, !(open === true))
+    })
+  }
+
   private settingsButtonOptions(): MenuElement[] {
     return [{
       value: $r('app.string.menu_emulator_management'),
@@ -281,6 +303,7 @@ export default struct WebTerminal {
           this.buildVKey('F4', FunctionKeySequences.F4);
           this.buildVKey('F5', FunctionKeySequences.F5);
           this.buildVKey('F6', FunctionKeySequences.F6);
+          this.codeartsButton();
           this.settingsButton();
         }
         .margin({ left: 5, right: 5 })
@@ -311,6 +334,7 @@ export default struct WebTerminal {
           this.buildVKey('↑', NormalKeySequences.UP, NormalKeySequences.UP_APP);
           this.buildVKey('↵', '\r', '\r');
 
+          this.codeartsButton();
           this.settingsButton();
         }
         .margin({ left: 5, right: 5 })
@@ -381,6 +405,7 @@ export default struct WebTerminal {
   async load(): Promise<void> {
     this.webviewController.runJavaScript('exports.setFocused(true)')
     napi.onData((d: ArrayBuffer): void => this.onData(d))
+    this.setupWritePort()
     napi.onShutdown((): void => {
       void this.onShutdown()
     })
@@ -459,7 +484,22 @@ export default struct WebTerminal {
         this.webviewController.runJavaScript(`exports.writeBase64("${clearBase64}", ${this.applicationMode})`);
       }
 
-      // 4. 发送合并后的数据
+      // 4. 端口直传（仅在握手验证通过后启用；失败/未验证一律走 Base64 老路径）
+      if (this.portReady && this.writePort) {
+        let sentByPort = false;
+        try {
+          this.writePort.postMessageEvent(merged.buffer as ArrayBuffer);
+          sentByPort = true;
+        } catch (e) {
+          hilog.error(DOMAIN, 'WebTerminal', 'port write failed, fallback: %{public}s', JSON.stringify(e));
+        }
+        if (sentByPort) {
+          return;
+        }
+        this.portReady = false;
+      }
+
+      // 5. Base64 老路径（默认/回退）
       const base64Helper = new util.Base64Helper();
       const base64 = base64Helper.encodeToStringSync(merged);
       this.webviewController.runJavaScript(`exports.writeBase64("${base64}", ${this.applicationMode})`);
@@ -602,6 +642,56 @@ export default struct WebTerminal {
   setApplicationMode(mode: boolean) {
     this.applicationMode = mode
     hilog.info(DOMAIN, 'WebTerminal', 'set applicationMode to %{public}s', this.applicationMode);
+  }
+
+  /**
+   * 按官方文档姿势建立端口通道（web-app-page-data-channel）：
+   * 1. createWebMessagePorts() 创建端口对；
+   * 2. 宿主持有 ports[0]，onMessageEvent 收页面回显完成握手验证；
+   * 3. controller.postMessage('__init_port__', [ports[1]], '*') 把端口交付给页面；
+   * 4. 发握手串，500ms 内收到回显才 portReady（此后终端数据走结构化克隆直传），
+   *    超时/异常则放弃端口，数据永远走 Base64 老路径，保证终端可用。
+   */
+  private setupWritePort(): void {
+    if (this.writePort !== undefined || this.portReady) {
+      return
+    }
+    try {
+      const ports = this.webviewController.createWebMessagePorts();
+      if (!ports || !ports[0] || !ports[1]) {
+        hilog.warn(DOMAIN, 'WebTerminal', 'createWebMessagePorts returned nothing, keep base64 path');
+        return
+      }
+      this.writePort = ports[0]
+      this.writePort.onMessageEvent((result: webview.WebMessage) => {
+        if (typeof result === 'string' && result === '__hish_port_ok__') {
+          if (!this.portReady) {
+            this.portReady = true
+            hilog.info(DOMAIN, 'WebTerminal', 'write port verified, terminal data via structured clone')
+          }
+          if (this.portHandshakeTimer !== undefined) {
+            clearTimeout(this.portHandshakeTimer)
+            this.portHandshakeTimer = undefined
+          }
+        }
+      })
+      this.webviewController.postMessage('__init_port__', [ports[1]], '*')
+      this.writePort.postMessageEvent('__hish_port_ok__')
+      if (this.portHandshakeTimer !== undefined) {
+        clearTimeout(this.portHandshakeTimer)
+      }
+      this.portHandshakeTimer = setTimeout(() => {
+        if (!this.portReady) {
+          hilog.info(DOMAIN, 'WebTerminal', 'port handshake timeout, keep base64 path')
+          try { this.writePort?.close() } catch (e) { }
+          this.writePort = undefined
+        }
+        this.portHandshakeTimer = undefined
+      }, 500)
+    } catch (e) {
+      hilog.warn(DOMAIN, 'WebTerminal', 'setupWritePort failed: %{public}s', JSON.stringify(e))
+      this.writePort = undefined
+    }
   }
 
   // Called from WebView when monospace font detection completes.

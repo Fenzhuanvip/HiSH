@@ -12,6 +12,7 @@ import RootfsManagementContent from "../components/RootfsManagementContent";
 import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
 import { ImmersiveButtonModifier, ImmersivePrimaryButtonModifier } from '../lib/immersiveButton';
+import { CodeArtsDrawer } from '../components/CodeArtsDrawer';
 
 @Component
 struct PcIndex {
@@ -65,6 +66,7 @@ struct PcIndex {
   immersivePrimaryButton: ImmersivePrimaryButtonModifier = new ImmersivePrimaryButtonModifier()
 
   build() {
+    Stack({ alignContent: Alignment.TopEnd }) {
     Column() {
       Row() {
         Row() {
@@ -176,6 +178,11 @@ struct PcIndex {
         .layoutWeight(1)
     }
     .width("100%")
+    .height('100%')
+
+    CodeArtsDrawer()
+    }
+    .width('100%')
     .height('100%')
   }
 
@@ -321,9 +328,15 @@ struct PcIndex {
 struct PhoneOrTablet {
 
   build() {
+    Stack({ alignContent: Alignment.TopEnd }) {
     Column() {
       WebTerminal({ virtKeyEnabled: true })
         .layoutWeight(1)
+    }
+    .width('100%')
+    .height('100%')
+
+    CodeArtsDrawer()
     }
     .width('100%')
     .height('100%')
