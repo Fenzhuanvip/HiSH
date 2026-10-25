@@ -2,6 +2,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit';
 import { webview } from '@kit.ArkWeb';
 import appOption from '../../model/appOption';
 import { saveCodeBlock } from '../../lib/codeartsBridge';
+import { setCodeArtsController } from '../../lib/codeartsBack';
 
 const DOMAIN = 0x0001;
 const TAG = '[CodeArtsWeb]';
@@ -105,6 +106,11 @@ export struct CodeArtsWeb {
           }.width('100%').height('100%').justifyContent(FlexAlign.Center)
         }
       }.width('100%').height('100%')
+  }
+
+  aboutToAppear(): void {
+    // 把 controller 注册给 onBackPress 用，实现返回手势在网页内后退
+    setCodeArtsController(this.controller)
   }
 
   aboutToDisappear(): void {
