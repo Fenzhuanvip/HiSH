@@ -646,7 +646,16 @@ function forceFit() {
     }
     if (newCols > term.cols + 1) {
         term.resize(newCols, term.rows);
-        console.log('forceFit: ' + newCols + ' cols (was ' + term.cols + ', win=' + winW + ' charW=' + charW + ')');
+    }
+    // 终极保底：如果终端 DOM 宽度 < 窗口宽度，直接按比例放大列数
+    if (term.element && term.element.offsetWidth > 0) {
+        var domW = term.element.offsetWidth;
+        if (winW > domW * 1.05) {
+            var scaledCols = Math.floor(term.cols * winW / domW);
+            if (scaledCols > term.cols) {
+                term.resize(scaledCols, term.rows);
+            }
+        }
     }
 }
 
