@@ -621,16 +621,19 @@ exports.fit = () => {
 };
 
 function forceFit() {
-    if (!term || term.cols < 1 || !term.element) return;
-    var elW = term.element.clientWidth;
+    if (!term || term.cols < 1) return;
     var winW = window.innerWidth || document.documentElement.clientWidth || 800;
-    // 用 fitAddon 的结果反推字符宽度，再用 window 宽度重算列数
-    var charW = elW / term.cols;
-    var newCols = Math.floor(winW / charW);
-    var newRows = term.rows; // 行数不变
-    if (newCols > term.cols) {
-        term.resize(newCols, newRows);
-        console.log('forceFit: ' + term.cols + ' cols (was ' + Math.floor(elW/charW) + ', win=' + winW + ' el=' + elW + ' charW=' + charW + ')');
+    // 用 terminal-container 的实际宽度（不被 .xterm CSS 影响）
+    var tc = document.getElementById('terminal-container');
+    var containerW = tc ? tc.clientWidth : winW;
+    // 如果容器宽度 < 窗口宽度，说明终端没撑满，用窗口宽度修正
+    if (containerW > 0 && winW > containerW + 5) {
+        var charW = containerW / term.cols;
+        var newCols = Math.floor(winW / charW);
+        if (newCols > term.cols) {
+            term.resize(newCols, term.rows);
+            console.log('forceFit: ' + newCols + ' cols (was ' + term.cols + ', win=' + winW + ' container=' + containerW + ' charW=' + charW + ')');
+        }
     }
 }
 
