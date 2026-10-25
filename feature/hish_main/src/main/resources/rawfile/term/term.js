@@ -621,23 +621,16 @@ exports.fit = () => {
 };
 
 function forceFit() {
-    if (!term || term.cols < 1) return;
-    var sw = screen.width || window.innerWidth || document.documentElement.clientWidth || 800;
-    var sh = window.innerHeight || document.documentElement.clientHeight || 600;
-    var s = document.createElement('span');
-    s.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font-family:' +
-        (term.options.fontFamily || 'monospace') + ';font-size:' + (term.options.fontSize || 12) + 'px';
-    s.textContent = 'MMMMMMMMMM';
-    document.body.appendChild(s);
-    var rect = s.getBoundingClientRect();
-    var charW = rect.width / 10;
-    var charH = rect.height;
-    document.body.removeChild(s);
-    var cols = Math.floor(sw / charW);
-    var rows = Math.floor(sh / charH);
-    if (cols > 0 && rows > 0 && (cols !== term.cols || rows !== term.rows)) {
-        term.resize(cols, rows);
-        console.log('forceFit: ' + cols + 'x' + rows + ' (screen:' + sw + 'x' + sh + ' char:' + charW + 'x' + charH + ')');
+    if (!term || term.cols < 1 || !term.element) return;
+    var elW = term.element.clientWidth;
+    var winW = window.innerWidth || document.documentElement.clientWidth || 800;
+    // 用 fitAddon 的结果反推字符宽度，再用 window 宽度重算列数
+    var charW = elW / term.cols;
+    var newCols = Math.floor(winW / charW);
+    var newRows = term.rows; // 行数不变
+    if (newCols > term.cols) {
+        term.resize(newCols, newRows);
+        console.log('forceFit: ' + term.cols + ' cols (was ' + Math.floor(elW/charW) + ', win=' + winW + ' el=' + elW + ' charW=' + charW + ')');
     }
 }
 
