@@ -439,7 +439,7 @@ export default struct WebTerminal {
   // 性能优化：输出缓冲区
   private pendingChunks: Uint8Array[] = [];
   private flushTimeoutID: number | undefined = undefined;
-  private readonly FLUSH_INTERVAL = 4; // 250FPS，平衡流畅度与性能
+  private readonly FLUSH_INTERVAL = 8; // 125FPS，减少 JS 桥调用，手机屏刷新率内足够流畅
 
   private onData(ab: ArrayBuffer) {
     try {
