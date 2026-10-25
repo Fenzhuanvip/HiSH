@@ -284,6 +284,7 @@ window.onload = function () {
                 document.fonts.ready.then(function () {
                     try {
                         fitAddon.fit();
+                        if (typeof forceFit === 'function') forceFit();
                         console.log(`Terminal size after font-ready fit: ${term.cols}x${term.rows}`);
                     } catch (e) { /* ignore */ }
                 }).catch(function () { /* ignore */ });
