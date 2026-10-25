@@ -257,7 +257,7 @@ window.onload = function () {
                 var tc = document.getElementById('terminal-container');
                 var te = document.getElementById('terminal');
                 var xt = document.querySelector('.xterm');
-                console.log('DIAG_WIDTH container=' + (tc?tc.clientWidth:'null') + ' terminal=' + (te?te.clientWidth:'null') + ' xterm=' + (xt?xt.clientWidth:'null') + ' window=' + window.innerWidth + ' dpr=' + window.devicePixelRatio + ' cols=' + term.cols);
+                term.writeln('\r\nDIAG container=' + (tc?tc.clientWidth:'null') + ' terminal=' + (te?te.clientWidth:'null') + ' xterm=' + (xt?xt.clientWidth:'null') + ' window=' + window.innerWidth + ' screen=' + screen.width + ' dpr=' + window.devicePixelRatio + ' cols=' + term.cols + '\r\n');
 
                 // If fit failed (size 0), force a default size
                 if (term.cols < 2 || term.rows < 2) {
