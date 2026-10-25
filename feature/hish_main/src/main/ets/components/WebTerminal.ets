@@ -352,7 +352,7 @@ export default struct WebTerminal {
         Row() {
           this.buildVKey('TAB', NormalKeySequences.TAB);
           this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
-          this.buildVKey('-', '-', '-');
+          this.codeartsButton();
 
           Row().layoutWeight(1);
 
