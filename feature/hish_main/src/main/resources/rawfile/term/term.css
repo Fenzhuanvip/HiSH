@@ -18,14 +18,7 @@ body {
     height: 100%;
 }
 
-.xterm {
-    width: 100% !important;
-    height: 100% !important;
-}
 
-.xterm-screen {
-    width: 100% !important;
-}
 
 .xterm-viewport {
     width: 100% !important;
