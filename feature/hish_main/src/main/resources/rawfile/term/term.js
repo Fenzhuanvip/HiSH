@@ -632,6 +632,18 @@ function forceFit() {
     var charW = s.getBoundingClientRect().width / 10;
     document.body.removeChild(s);
     var newCols = Math.floor(winW / charW);
+    // 用 getComputedStyle 获取实际渲染字号二次测量（term.options.fontSize 可能和实际不一致）
+    if (term.element) {
+        var cs = window.getComputedStyle(term.element);
+        var s2 = document.createElement('span');
+        s2.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font-family:' + cs.fontFamily + ';font-size:' + cs.fontSize;
+        s2.textContent = 'MMMMMMMMMM';
+        document.body.appendChild(s2);
+        var realCharW = s2.getBoundingClientRect().width / 10;
+        document.body.removeChild(s2);
+        var realCols = Math.floor(winW / realCharW);
+        if (realCols > newCols) newCols = realCols;
+    }
     if (newCols > term.cols + 1) {
         term.resize(newCols, term.rows);
         console.log('forceFit: ' + newCols + ' cols (was ' + term.cols + ', win=' + winW + ' charW=' + charW + ')');
