@@ -623,17 +623,18 @@ exports.fit = () => {
 function forceFit() {
     if (!term || term.cols < 1) return;
     var winW = window.innerWidth || document.documentElement.clientWidth || 800;
-    // 用 terminal-container 的实际宽度（不被 .xterm CSS 影响）
-    var tc = document.getElementById('terminal-container');
-    var containerW = tc ? tc.clientWidth : winW;
-    // 如果容器宽度 < 窗口宽度，说明终端没撑满，用窗口宽度修正
-    if (containerW > 0 && winW > containerW + 5) {
-        var charW = containerW / term.cols;
-        var newCols = Math.floor(winW / charW);
-        if (newCols > term.cols) {
-            term.resize(newCols, term.rows);
-            console.log('forceFit: ' + newCols + ' cols (was ' + term.cols + ', win=' + winW + ' container=' + containerW + ' charW=' + charW + ')');
-        }
+    // 独立测量字符宽度（不依赖容器宽度/当前列数反推，避免循环）
+    var s = document.createElement('span');
+    s.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font-family:' +
+        (term.options.fontFamily || 'monospace') + ';font-size:' + (term.options.fontSize || 14) + 'px';
+    s.textContent = 'MMMMMMMMMM';
+    document.body.appendChild(s);
+    var charW = s.getBoundingClientRect().width / 10;
+    document.body.removeChild(s);
+    var newCols = Math.floor(winW / charW);
+    if (newCols > term.cols + 1) {
+        term.resize(newCols, term.rows);
+        console.log('forceFit: ' + newCols + ' cols (was ' + term.cols + ', win=' + winW + ' charW=' + charW + ')');
     }
 }
 
