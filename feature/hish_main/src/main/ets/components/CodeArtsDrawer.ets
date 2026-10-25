@@ -15,19 +15,19 @@ export struct CodeArtsDrawer {
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
 
   build() {
-    Stack({ alignContent: Alignment.TopStart }) {
+    Stack({ alignContent: Alignment.TopEnd }) {
       CodeArtsWeb()
         .width('100%').height('100%')
 
       Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
         SymbolGlyph($r('sys.symbol.xmark'))
-          .fontSize(16)
+          .fontSize(14)
           .fontColor([CodeArtsColor.textSub])
       }
-      .width(32).height(32)
-      .margin({ top: 8, left: 8 })
-      .backgroundColor('#1A1B2ECC')
-      .borderRadius(16)
+      .width(28).height(28)
+      .margin({ top: 8, right: 8 })
+      .backgroundColor('#1A1B2EB3')
+      .borderRadius(14)
       .attributeModifier(this.immersiveButton)
       .onClick(() => { this.open = false })
     }

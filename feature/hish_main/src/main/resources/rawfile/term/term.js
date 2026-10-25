@@ -257,7 +257,7 @@ window.onload = function () {
                 var tc = document.getElementById('terminal-container');
                 var te = document.getElementById('terminal');
                 var xt = document.querySelector('.xterm');
-                term.writeln('\r\nDIAG container=' + (tc?tc.clientWidth:'null') + ' terminal=' + (te?te.clientWidth:'null') + ' xterm=' + (xt?xt.clientWidth:'null') + ' window=' + window.innerWidth + ' screen=' + screen.width + ' dpr=' + window.devicePixelRatio + ' cols=' + term.cols + '\r\n');
+                console.log('DIAG container=' + (tc ? tc.clientWidth : 'null') + ' terminal=' + (te ? te.clientWidth : 'null') + ' xterm=' + (xt ? xt.clientWidth : 'null') + ' window=' + window.innerWidth + ' screen=' + screen.width + ' dpr=' + window.devicePixelRatio + ' cols=' + term.cols + ' charW=' + measureCharWidth().toFixed(3));
 
                 // If fit failed (size 0), force a default size
                 if (term.cols < 2 || term.rows < 2) {
@@ -280,15 +280,25 @@ window.onload = function () {
             //     font and computed the wrong column count, leaving a blank
             //     strip on the right. document.fonts.ready resolves when all
             //     pending fonts have loaded (or failed).
+            //     forceFit 用探针实测真实字符步进，能纠正 fitAddon 用陈旧
+            //     cell.width 算出的偏小列数。ArkWeb 上 fonts.ready 偶尔在字体
+            //     真正解码前就 resolve，故再按几个延时复测兜底。
+            var refitOnce = function () {
+                try {
+                    fitAddon.fit();
+                    if (typeof forceFit === 'function') forceFit();
+                    console.log(`Terminal size after font-ready fit: ${term.cols}x${term.rows}`);
+                } catch (e) { /* ignore */ }
+            };
             if (document.fonts && document.fonts.ready) {
-                document.fonts.ready.then(function () {
-                    try {
-                        fitAddon.fit();
-                        if (typeof forceFit === 'function') forceFit();
-                        console.log(`Terminal size after font-ready fit: ${term.cols}x${term.rows}`);
-                    } catch (e) { /* ignore */ }
-                }).catch(function () { /* ignore */ });
+                document.fonts.ready.then(refitOnce).catch(function () { /* ignore */ });
             }
+            // 延时复测：覆盖 fonts.ready 提前 resolve / 字体解码滞后于 ready 的情况。
+            [600, 1200, 2000, 3000].forEach(function (d) {
+                setTimeout(function () {
+                    if (typeof forceFit === 'function') forceFit();
+                }, d);
+            });
 
             // 4. Load WebGL (unavailable in this DOM-renderer-only build)
             if (shouldEnableWebGL) {
@@ -456,7 +466,10 @@ function setupEventListeners() {
 
     // 4. Handle Window Resize
     window.addEventListener('resize', () => {
-        setTimeout(() => fitAddon.fit(), 100);
+        setTimeout(() => {
+            fitAddon.fit();
+            if (typeof forceFit === 'function') forceFit();
+        }, 100);
     });
 
     // 4b. Observe container size changes that do NOT fire window resize
@@ -477,6 +490,7 @@ function setupEventListeners() {
             setTimeout(function () {
                 try {
                     fitAddon.fit();
+                    if (typeof forceFit === 'function') forceFit();
                 } catch (e) { /* ignore */ }
             }, 50);
         });
@@ -620,18 +634,61 @@ exports.fit = () => {
     }
 };
 
+// Ground-truth monospace advance for the terminal's CURRENT font.
+// 用隐藏探针按 term 当前的 font-family + font-size 实测真实字符步进，
+// 独立于 xterm 内部缓存的 cell.width —— 后者在 term.open() 时若网页字体
+// 尚未加载完成，会拿更宽的回退字体量出一个偏大的 cell.width 并缓存，
+// 导致 fitAddon 把列数算少（例如 51 而非 63），右侧长期留黑边 + 省略号。
+function measureCharWidth() {
+    try {
+        if (!term) return 0;
+        var font = term.options.fontFamily || 'monospace';
+        var size = term.options.fontSize || 14;
+        var probe = document.createElement('span');
+        probe.style.fontFamily = font;
+        probe.style.fontSize = size + 'px';
+        probe.style.position = 'absolute';
+        probe.style.visibility = 'hidden';
+        probe.style.left = '-9999em';
+        probe.style.top = '0';
+        probe.style.whiteSpace = 'pre';
+        probe.style.lineHeight = 'normal';
+        probe.textContent = 'MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM';
+        (document.body || document.documentElement).appendChild(probe);
+        var w = probe.getBoundingClientRect().width / probe.textContent.length;
+        probe.parentNode.removeChild(probe);
+        return w > 0 ? w : 0;
+    } catch (e) {
+        return 0;
+    }
+}
+
 function forceFit() {
     if (!term || term.cols < 1) return;
-    var winW = window.innerWidth || document.documentElement.clientWidth || 800;
-    // 用 .xterm-rows 的实际渲染宽度反推字符宽度
-    // .xterm-rows 不被 CSS width:100% 撑满，宽度 = cols × actualCharW
-    var rows = term.element ? term.element.querySelector('.xterm-rows') : null;
-    if (rows && rows.offsetWidth > 0 && term.cols > 0) {
-        var actualCharW = rows.offsetWidth / term.cols;
-        var newCols = Math.floor(winW / actualCharW);
-        if (newCols > term.cols) {
-            term.resize(newCols, term.rows);
-        }
+    // 真实可用宽度 = 实际布局后的容器宽度（CSS px）。
+    // 不用 window.innerWidth：ArkWeb 上它常滞后 Web 组件真实尺寸或缩放不一致，
+    // 这是之前几版按比例反推始终改不动列数的根本原因。
+    var container = document.getElementById('terminal-container');
+    var availW = container ? container.clientWidth : 0;
+    if (!(availW > 0)) availW = window.innerWidth || document.documentElement.clientWidth || 800;
+
+    // 真实字符步进（地面真值，非 xterm 缓存的 cell.width）。
+    var charW = measureCharWidth();
+    if (!(charW > 0)) {
+        // 兜底：从已渲染的 rows 元素反推（仅在探针失败时）。
+        var rows = term.element ? term.element.querySelector('.xterm-rows') : null;
+        if (rows && rows.offsetWidth > 0) charW = rows.offsetWidth / term.cols;
+    }
+    if (!(charW > 0)) return;
+
+    var newCols = Math.max(2, Math.floor(availW / charW));
+    if (newCols !== term.cols) {
+        // term.resize 到不同列数会触发 xterm 渲染器重新测量字体，
+        // 把之前用回退字体量出的陈旧 cell.width 一并修正，
+        // 光标 / 选区几何与文本对齐才不会错位。
+        console.log('forceFit: ' + term.cols + ' -> ' + newCols +
+            ' (availW=' + availW + ' charW=' + charW.toFixed(3) + ')');
+        term.resize(newCols, term.rows);
     }
 }
 
