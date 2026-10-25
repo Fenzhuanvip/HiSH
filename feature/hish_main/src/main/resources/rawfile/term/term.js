@@ -253,6 +253,7 @@ window.onload = function () {
             try {
                 fitAddon.fit();
                 console.log(`Terminal size after fit: ${term.cols}x${term.rows}`);
+                if (typeof forceFit === 'function') forceFit();
                 var tc = document.getElementById('terminal-container');
                 var te = document.getElementById('terminal');
                 var xt = document.querySelector('.xterm');
@@ -620,7 +621,7 @@ exports.fit = () => {
 
 function forceFit() {
     if (!term || term.cols < 1) return;
-    var sw = window.innerWidth || document.documentElement.clientWidth || 800;
+    var sw = screen.width || window.innerWidth || document.documentElement.clientWidth || 800;
     var sh = window.innerHeight || document.documentElement.clientHeight || 600;
     var s = document.createElement('span');
     s.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font-family:' +
