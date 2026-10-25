@@ -609,13 +609,31 @@ exports.setFontFamily = (family) => {
 // re-fit when the Web component's area changes outside this page's control.
 exports.fit = () => {
     if (term) {
-        try {
-            fitAddon.fit();
-        } catch (e) {
-            console.error('exports.fit failed', e);
-        }
+        try { fitAddon.fit() } catch (e) { console.error('exports.fit failed', e) }
+        forceFit();
     }
 };
+
+function forceFit() {
+    if (!term || term.cols < 1) return;
+    var sw = window.innerWidth || document.documentElement.clientWidth || 800;
+    var sh = window.innerHeight || document.documentElement.clientHeight || 600;
+    var s = document.createElement('span');
+    s.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font-family:' +
+        (term.options.fontFamily || 'monospace') + ';font-size:' + (term.options.fontSize || 12) + 'px';
+    s.textContent = 'MMMMMMMMMM';
+    document.body.appendChild(s);
+    var rect = s.getBoundingClientRect();
+    var charW = rect.width / 10;
+    var charH = rect.height;
+    document.body.removeChild(s);
+    var cols = Math.floor(sw / charW);
+    var rows = Math.floor(sh / charH);
+    if (cols > 0 && rows > 0 && (cols !== term.cols || rows !== term.rows)) {
+        term.resize(cols, rows);
+        console.log('forceFit: ' + cols + 'x' + rows + ' (screen:' + sw + 'x' + sh + ' char:' + charW + 'x' + charH + ')');
+    }
+}
 
 exports.setCursorBlink = (blink) => {
     term.options.cursorBlink = blink;
