@@ -30,6 +30,7 @@ class appOption {
   static terminalCursorShape = 'terminalCursorShape'
   static terminalLigatures = 'terminalLigatures'   // 连字开关
   static terminalItalic = 'terminalItalic'         // 斜体开关
+  static terminalWebglRenderer = 'terminalWebglRenderer'   // GPU(WebGL)渲染开关(实验)
   static terminalBackgroundColor = 'terminalBackgroundColor'   // 终端背景色 (如 '#000000')
   static terminalBackgroundImage = 'terminalBackgroundImage' // 背景图片文件名 (位于 filesDir/terminal_bg 下)
   static terminalBackgroundBlur = 'terminalBackgroundBlur'   // 背景高斯模糊半径 (px)

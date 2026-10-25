@@ -201,6 +201,8 @@ export default class EntryAbility extends UIAbility {
     AppStorage.setOrCreate(appOption.terminalLigatures, terminalLigatures);
     const terminalItalic = await appPref.get(appOption.terminalItalic, true) as boolean;
     AppStorage.setOrCreate(appOption.terminalItalic, terminalItalic);
+    const terminalWebglRenderer = await appPref.get(appOption.terminalWebglRenderer, false) as boolean;
+    AppStorage.setOrCreate(appOption.terminalWebglRenderer, terminalWebglRenderer);
     const terminalBackgroundColor = await appPref.get(appOption.terminalBackgroundColor, '#000000') as string;
     AppStorage.setOrCreate(appOption.terminalBackgroundColor, terminalBackgroundColor);
     const terminalBackgroundImage = await appPref.get(appOption.terminalBackgroundImage, '') as string;

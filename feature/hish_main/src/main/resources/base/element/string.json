@@ -785,6 +785,14 @@
       "value": "Allow italic text"
     },
     {
+      "name": "setting_webgl",
+      "value": "GPU Render (Experimental)"
+    },
+    {
+      "name": "setting_webgl_desc",
+      "value": "WebGL renderer, faster on heavy output. Restart terminal to apply."
+    },
+    {
       "name": "setting_background_color",
       "value": "Background Color"
     },

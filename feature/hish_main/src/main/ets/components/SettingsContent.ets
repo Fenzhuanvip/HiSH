@@ -48,6 +48,7 @@ export default struct SettingsContent {
   @Watch('saveTermCursorBlink') @StorageProp(appOption.terminalCursorBlink) termCursorBlink: boolean = false
   @Watch('saveTermLigatures') @StorageProp(appOption.terminalLigatures) termLigatures: boolean = false
   @Watch('saveTermItalic') @StorageProp(appOption.terminalItalic) termItalic: boolean = true
+  @Watch('saveTermWebgl') @StorageProp(appOption.terminalWebglRenderer) termWebgl: boolean = false
   @Watch('saveTermBackgroundColor') @StorageProp(appOption.terminalBackgroundColor) termBackgroundColor: string =
     '#000000'
   @Watch('saveTermBackgroundImage') @StorageProp(appOption.terminalBackgroundImage) termBackgroundImage: string = ''
@@ -187,6 +188,14 @@ export default struct SettingsContent {
       .select(this.termItalic)
       .onChange((value: boolean) => {
         AppStorage.setOrCreate(appOption.terminalItalic, value)
+      })
+  }
+  @Builder
+  private buildTermWebgl() {
+    Checkbox()
+      .select(this.termWebgl)
+      .onChange((value: boolean) => {
+        AppStorage.setOrCreate(appOption.terminalWebglRenderer, value)
       })
   }
 
@@ -390,6 +399,15 @@ export default struct SettingsContent {
             }).onClick(() => {
               AppStorage.setOrCreate(appOption.terminalItalic, !this.termItalic)
             })
+            SettingItem({
+              title: $r('app.string.setting_webgl'),
+              subTitle: $r('app.string.setting_webgl_desc'),
+              content: () => {
+                this.buildTermWebgl()
+              }
+            }).onClick(() => {
+              AppStorage.setOrCreate(appOption.terminalWebglRenderer, !this.termWebgl)
+            })
 
             SettingItem({
               title: $r('app.string.setting_cursor_style'),
@@ -528,6 +546,9 @@ export default struct SettingsContent {
 
   async saveTermItalic() {
     await savePreference(appOption.terminalItalic, this.termItalic, this.getUIContext())
+  }
+  async saveTermWebgl() {
+    await savePreference(appOption.terminalWebglRenderer, this.termWebgl, this.getUIContext())
   }
 
   async saveTermBackgroundColor() {

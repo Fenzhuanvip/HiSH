@@ -175,8 +175,10 @@ window.onload = function () {
     const maxRetries = 10;
 
     function initialize() {
-        // Disable WebGL as per user request (Compatibility Mode)
-        let shouldEnableWebGL = false;
+        // WebGL 渲染开关(实验)：由设置页"GPU Render"控制，默认关。
+        // 关闭时用 DOM 渲染器(兼容性好)；开启走 GPU 绘制，大量输出时更流畅，
+        // 但部分手机触屏坐标可能错位，需实测后再常开。
+        let shouldEnableWebGL = !!(window.native && native.getWebglRenderer && native.getWebglRenderer());
 
         // Check if native is ready
         if (!window.native && retryCount < maxRetries) {

@@ -40,6 +40,7 @@ export default struct WebTerminal {
   @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
   @Watch('onLigaturesChanged') @StorageProp(appOption.terminalLigatures) termLigatures: boolean = false
   @Watch('onItalicChanged') @StorageProp(appOption.terminalItalic) termItalic: boolean = true
+  @StorageProp(appOption.terminalWebglRenderer) termWebgl: boolean = false
   @Watch('onBgColorChanged') @StorageProp(appOption.terminalBackgroundColor) termBgColor: string = '#000000'
   @Watch('onBgImageChanged') @StorageProp(appOption.terminalBackgroundImage) termBgImage: string = ''
   @Watch('onBgBlurChanged') @StorageProp(appOption.terminalBackgroundBlur) termBgBlur: number = 0
@@ -237,6 +238,7 @@ export default struct WebTerminal {
             'getFontSize', 'getFontFamily',
             'getCursorShape', 'getCursorBlink',
             'getLigatures', 'getItalic',
+            'getWebglRenderer',
             'getBackgroundColor', 'getBackgroundImage', 'getBackgroundBlur',
             'getUserFonts',
             'setApplicationMode',
@@ -574,6 +576,9 @@ export default struct WebTerminal {
 
   getItalic(): boolean {
     return this.termItalic
+  }
+  getWebglRenderer(): boolean {
+    return this.termWebgl
   }
 
   getBackgroundColor(): string {
