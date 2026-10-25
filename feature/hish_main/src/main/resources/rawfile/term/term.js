@@ -253,6 +253,10 @@ window.onload = function () {
             try {
                 fitAddon.fit();
                 console.log(`Terminal size after fit: ${term.cols}x${term.rows}`);
+                var tc = document.getElementById('terminal-container');
+                var te = document.getElementById('terminal');
+                var xt = document.querySelector('.xterm');
+                console.log('DIAG_WIDTH container=' + (tc?tc.clientWidth:'null') + ' terminal=' + (te?te.clientWidth:'null') + ' xterm=' + (xt?xt.clientWidth:'null') + ' window=' + window.innerWidth + ' dpr=' + window.devicePixelRatio + ' cols=' + term.cols);
 
                 // If fit failed (size 0), force a default size
                 if (term.cols < 2 || term.rows < 2) {
