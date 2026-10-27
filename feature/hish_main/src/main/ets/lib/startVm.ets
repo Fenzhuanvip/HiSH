@@ -1,4 +1,5 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
+import { bundleManager } from '@kit.AbilityKit'
 import napi from 'libhish_main.so'
 import { defaultEmulator, PortMapping } from '../model/Emulator'
 import deviceInfo from '@ohos.deviceInfo'
@@ -97,10 +98,13 @@ function startVm(options: VmOptions): boolean {
     fs.mkdirSync(options.sharedFolder)
   }
 
-  // JIT 策略：自签名构建下 phone 也可启用 JIT（Mate60Pro+ 专属分支）
-  // 原逻辑为 deviceInfo.deviceType !== 'phone'，自签名后 phone 同样支持 JIT
+  // JIT 策略：应用市场版(app.hackeris.hish)因商店政策限制强制走 TCI；
+  // 其余包名（自签名 dev.hackeris.hish 等）下，phone 也可启用 JIT（Mate60Pro+ 专属分支）
+  const appBundleName: string = bundleManager.getBundleInfoForSelfSync(
+    bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT).name;
   const forceJit = AppStorage.get<boolean>('forceEnableJit') ?? true
-  const supportJit: boolean = forceJit || deviceInfo.deviceType !== 'phone';
+  const supportJit: boolean = appBundleName !== 'app.hackeris.hish' &&
+    (forceJit || deviceInfo.deviceType !== 'phone');
 
   const started: boolean = napi.startVM({
     argsLines: args.join('\n'),
