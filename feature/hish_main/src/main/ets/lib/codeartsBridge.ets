@@ -47,22 +47,3 @@ export function saveCodeBlock(sharedHost: string, content: string, lang: string)
     return false;
   }
 }
-
-// ===== AI 回执通道 =====
-export type ReplyHandler = (text: string) => void
-let replyHandler: ReplyHandler | null = null
-
-export function setReplyHandler(h: ReplyHandler | null): void {
-  replyHandler = h
-}
-
-export function dispatchReply(text: string): boolean {
-  if (!replyHandler || !text || text.length === 0) return false
-  try {
-    replyHandler(text)
-    return true
-  } catch (e) {
-    hilog.error(DOMAIN, TAG, 'dispatchReply failed: %{public}s', JSON.stringify(e))
-    return false
-  }
-}

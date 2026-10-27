@@ -1,7 +1,7 @@
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { webview } from '@kit.ArkWeb';
 import appOption from '../../model/appOption';
-import { saveCodeBlock, dispatchReply } from '../../lib/codeartsBridge';
+import { saveCodeBlock } from '../../lib/codeartsBridge';
 import { setCodeArtsController } from '../../lib/codeartsBack';
 
 const DOMAIN = 0x0001;
@@ -41,49 +41,9 @@ const INJECT_SCRIPT = `(function(){
 /** 取出并清空队列 */
 const DRAIN_SCRIPT = `(function(){ var q = window.__hishQueue || []; window.__hishQueue = []; return JSON.stringify(q); })()`;
 
-/** 监听 AI 回复节点，自动入队。SELECTOR 按实际页面替换 */
-const AI_SELECTOR = '.chat-message, .markdown-body, [class*="message"]'
-const OBSERVE_SCRIPT = `(function(){
-  if (window.__hishObserver) return 'already';
-  window.__hishQueue = window.__hishQueue || [];
-  var seen = new WeakSet();
-  function pick(el){
-    try {
-      if (!el || seen.has(el)) return;
-      var t = (el.innerText || '').trim();
-      if (!t || t.length < 2) return;
-      if (el.querySelector('pre')) return;           // 代码块交给原按钮逻辑
-      if (el.querySelector('button')) return;
-      seen.add(el);
-      window.__hishQueue.push({ kind: 'reply', content: t, lang: '' });
-    } catch(e){}
-  }
-  function scan(){
-    var nodes = document.querySelectorAll('${AI_SELECTOR}');
-    for (var i = 0; i < nodes.length; i++) pick(nodes[i]);
-  }
-  var obs = new MutationObserver(function(muts){
-    for (var i = 0; i < muts.length; i++) {
-      var added = muts[i].addedNodes;
-      for (var j = 0; j < added.length; j++) {
-        var n = added[j];
-        if (n.nodeType !== 1) continue;
-        pick(n);
-        var subs = n.querySelectorAll ? n.querySelectorAll('${AI_SELECTOR}') : [];
-        for (var k = 0; k < subs.length; k++) pick(subs[k]);
-      }
-    }
-  });
-  obs.observe(document.body, { childList: true, subtree: true });
-  window.__hishObserver = obs;
-  scan();
-  return 'ok';
-})()`;
-
 interface CodeBlockItem {
   content: string
   lang: string
-  kind?: string
 }
 
 @Component
@@ -200,14 +160,7 @@ export struct CodeArtsWeb {
   }
 
   private injectCodeButtons(): void {
-    try {
-      this.controller.runJavaScript(INJECT_SCRIPT)
-      this.controller.runJavaScript(OBSERVE_SCRIPT).then((r: string) => {
-        if (r !== 'ok' && r !== 'already') {
-          hilog.warn(DOMAIN, TAG, 'observer inject: %{public}s', r)
-        }
-      }).catch(() => { })
-    } catch (e) { }
+    try { this.controller.runJavaScript(INJECT_SCRIPT) } catch (e) { }
   }
 
   private drainQueue(): void {
@@ -216,13 +169,6 @@ export struct CodeArtsWeb {
         if (!res || res.length === 0 || res === '[]') { return }
         const items = JSON.parse(res) as CodeBlockItem[]
         items.forEach((it: CodeBlockItem) => {
-          if (it.kind === 'reply') {
-            const ok = dispatchReply(it.content)
-            if (!ok) {
-              this.toast('终端未就绪，回复已丢弃')
-            }
-            return
-          }
           const ok = saveCodeBlock(this.sharedHost, it.content, it.lang)
           this.toast(ok ? '已保存到共享目录' : '共享目录不可用')
         })
