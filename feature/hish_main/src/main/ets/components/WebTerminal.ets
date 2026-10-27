@@ -10,7 +10,6 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import fileToDataUrl from '../lib/fileToDataUrl';
 import { ImmersiveButtonModifier, ImmersiveToggleModifier } from '../lib/immersiveButton';
-import { setReplyHandler } from '../lib/codeartsBridge';
 import {
   applyVirtualKeyModifiers,
   FunctionKeySequences,
@@ -224,16 +223,6 @@ export default struct WebTerminal {
       .onClick(() => {
         this.showVirtKey = false
       })
-  }
-
-  aboutToAppear(): void {
-    setReplyHandler((text: string) => {
-      this.sendInput('# ' + text.replace(/\r?\n/g, '\n# ') + '\r')
-    })
-  }
-
-  aboutToDisappear(): void {
-    setReplyHandler(null)
   }
 
   build() {
