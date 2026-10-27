@@ -10,6 +10,7 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import fileToDataUrl from '../lib/fileToDataUrl';
 import { ImmersiveButtonModifier, ImmersiveToggleModifier } from '../lib/immersiveButton';
+import { setReplyHandler } from '../lib/codeartsBridge';
 import {
   applyVirtualKeyModifiers,
   FunctionKeySequences,
@@ -78,8 +79,8 @@ export default struct WebTerminal {
             let board = pasteboard.getSystemPasteboard();
             const data = await board.getData()
             const text = data.getPrimaryText()
-            // 直传 Unicode 文本(JSON 转义),由 sendInput 做唯一一次 UTF-8 编码,
-            // 修复原 base64+atob 二进制字符串被二次编码导致的非 ASCII(中文)乱码
+            // 直传 Unicode 文本(JSON 转义),由 sendInput 坚唯一一次 UTF-8 编砝,
+            // 修夝原 base64+atob 二进制字符串被二次编砝导致的非 ASCII(中文)乱砝
             webController.runJavaScript(`exports.paste(${JSON.stringify(text)})`)
           }
         })
@@ -225,6 +226,16 @@ export default struct WebTerminal {
       })
   }
 
+  aboutToAppear(): void {
+    setReplyHandler((text: string) => {
+      this.sendInput('# ' + text.replace(/\r?\n/g, '\n# ') + '\r')
+    })
+  }
+
+  aboutToDisappear(): void {
+    setReplyHandler(null)
+  }
+
   build() {
     Column() {
       Web({
@@ -262,8 +273,8 @@ export default struct WebTerminal {
         .width('100%')
         .layoutWeight(1)
         .onAreaChange((oldArea: Area, newArea: Area) => {
-          // Web 组件尺寸变化（转屏/分屏/抽屉/键盘）时让 JS 端重算行列数，
-          // 防止窗口变宽后终端仍按旧宽度渲染、右侧留黑边
+          // Web 组件尺寸坘化（转屝/分屝/抽屉/键盘）时让 JS 端針算行列数，
+          // 防止窗坣坘宽坎终端仝按旧宽度渲染〝坳侧留黑边
           if (oldArea.width !== newArea.width || oldArea.height !== newArea.height) {
             this.webviewController.runJavaScript('typeof exports !== "undefined" && exports.fit && exports.fit()')
           }
@@ -357,7 +368,7 @@ export default struct WebTerminal {
           Row().layoutWeight(1);
 
           this.buildVKey('PGDN', NormalKeySequences.PGDN);
-          this.buildVKey('←', NormalKeySequences.LEFT, NormalKeySequences.LEFT_APP);
+          this.buildVKey('↝', NormalKeySequences.LEFT, NormalKeySequences.LEFT_APP);
           this.buildVKey('↓', NormalKeySequences.DOWN, NormalKeySequences.DOWN_APP);
           this.buildVKey('→', NormalKeySequences.RIGHT, NormalKeySequences.RIGHT_APP);
           this.hideVKeyButton();
@@ -409,7 +420,7 @@ export default struct WebTerminal {
     let buffer = stringToArrayBuffer(data, 'utf-8');
     napi.sendInput(buffer)
 
-    // Ctrl: 一次性模式，发送后自动重置 | Shift: 状态保持，需要用户手动点击取消
+    // Ctrl: 一次性模弝，坑逝坎自动針置 | Shift: 状思保挝，需覝用户手动点击坖消
   }
 
   async load(): Promise<void> {
@@ -441,11 +452,11 @@ export default struct WebTerminal {
   // 性能优化：输出缓冲区
   private pendingChunks: Uint8Array[] = [];
   private flushTimeoutID: number | undefined = undefined;
-  private readonly FLUSH_INTERVAL = 8; // 125FPS，减少 JS 桥调用，手机屏刷新率内足够流畅
+  private readonly FLUSH_INTERVAL = 8; // 125FPS，凝少 JS 桥调用，手机屝刷新率内足够浝畅
 
   private onData(ab: ArrayBuffer) {
     try {
-      // 将收到的数据块加入队列
+      // 将收到的数杮块加入队列
       this.pendingChunks.push(new Uint8Array(ab));
 
       // 如果没有正在等待的 Flush 任务，则调度一个
@@ -471,7 +482,7 @@ export default struct WebTerminal {
         totalLength += chunk.length;
       }
 
-      // 2. 合并所有 Chunk
+      // 2. 坈并所有 Chunk
       const merged = new Uint8Array(totalLength);
       let offset = 0;
       for (const chunk of this.pendingChunks) {
@@ -482,7 +493,7 @@ export default struct WebTerminal {
       // 清空缓冲区
       this.pendingChunks = [];
 
-      // 3. 检测清屏信号（原始字节 \x1b[H\x1b[J）
+      // 3. 检测清屝信坷（原始字节 \x1b[H\x1b[J）
       if (merged.length >= 6 &&
         merged[0] === 0x1b && merged[1] === 0x5b && merged[2] === 0x48 &&
         merged[3] === 0x1b && merged[4] === 0x5b && merged[5] === 0x4a
@@ -494,7 +505,7 @@ export default struct WebTerminal {
         this.webviewController.runJavaScript(`exports.writeBase64("${clearBase64}", ${this.applicationMode})`);
       }
 
-      // 4. 端口直传（仅在握手验证通过后启用；失败/未验证一律走 Base64 老路径）
+      // 4. 端坣直传（仅在条手验话通过坎坯用；失败/未验话一律走 Base64 耝路径）
       if (this.portReady && this.writePort) {
         let sentByPort = false;
         try {
@@ -509,14 +520,14 @@ export default struct WebTerminal {
         this.portReady = false;
       }
 
-      // 5. Base64 老路径（默认/回退）
+      // 5. Base64 耝路径（默认/回退）
       const base64Helper = new util.Base64Helper();
       const base64 = base64Helper.encodeToStringSync(merged);
       this.webviewController.runJavaScript(`exports.writeBase64("${base64}", ${this.applicationMode})`);
 
     } catch (e) {
       hilog.error(DOMAIN, 'WebTerminal', 'flushData failed: %{public}s', JSON.stringify(e));
-      // 出错时也要清空缓冲区，避免积压
+      // 出错时也覝清空缓冲区，靿兝积压
       this.pendingChunks = [];
     }
   }
@@ -658,12 +669,12 @@ export default struct WebTerminal {
   }
 
   /**
-   * 按官方文档姿势建立端口通道（web-app-page-data-channel）：
-   * 1. createWebMessagePorts() 创建端口对；
-   * 2. 宿主持有 ports[0]，onMessageEvent 收页面回显完成握手验证；
-   * 3. controller.postMessage('__init_port__', [ports[1]], '*') 把端口交付给页面；
-   * 4. 发握手串，500ms 内收到回显才 portReady（此后终端数据走结构化克隆直传），
-   *    超时/异常则放弃端口，数据永远走 Base64 老路径，保证终端可用。
+   * 按官方文档姿势建立端坣通靓（web-app-page-data-channel）：
+   * 1. createWebMessagePorts() 创建端坣对；
+   * 2. 宿主挝有 ports[0]，onMessageEvent 收页面回显完戝条手验话；
+   * 3. controller.postMessage('__init_port__', [ports[1]], '*') 把端坣交付给页面；
+   * 4. 坑条手串，500ms 内收到回显扝 portReady（此坎终端数杮走结构化克隆直传），
+   *    超时/异常则放弃端坣，数杮永远走 Base64 耝路径，保话终端坯用。
    */
   private setupWritePort(): void {
     if (this.writePort !== undefined || this.portReady) {
