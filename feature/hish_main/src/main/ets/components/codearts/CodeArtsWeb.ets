@@ -55,7 +55,7 @@ const OBSERVE_SCRIPT = `(function(){
       if (el.querySelector('pre')) return;           // 代码块交给原按钮逻辑
       if (el.querySelector('button')) return;
       seen.add(el);
-      window.__hishQueue.push({ kind: 'reply', content: t });
+      window.__hishQueue.push({ kind: 'reply', content: t, lang: '' });
     } catch(e){}
   }
   function scan(){

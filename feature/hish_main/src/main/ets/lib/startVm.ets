@@ -38,7 +38,7 @@ function startVm(options: VmOptions): boolean {
   const kernel = ['-kernel', options.kernel]
   const network = ["-global", "virtio-net-pci.ctrl_guest_offloads=off", "-global", "virtio-net-pci.packed=on",
     "-device", "virtio-net-pci-non-transitional," +
-    "netdev=eth0,csum=on,gso=on,guest_tso4=on,guest_tso6=on,guest_ecn=off,mrg_rxbuf=on,tx=bh,mq=on,vectors=8",
+    "netdev=eth0,csum=on,gso=on,guest_tso4=on,guest_tso6=on,guest_ecn=off,mrg_rxbuf=on,tx=bh,mq=on,vectors=10",
     '-netdev', "user,id=eth0" + options.portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('') + ",hostfwd=tcp::8889-:8889"]
   const shared =
     ["-fsdev", "local,security_model=mapped-file,id=fsdev0,cache=loose,path=" + options.sharedFolder + sharedFolderOption,
