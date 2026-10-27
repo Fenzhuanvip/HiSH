@@ -43,4 +43,4 @@ all: download/qemu
 
 download/qemu:
 	mkdir -p download
-	cd download && git clone -b hish-libqemu --depth=1 https://github.com/harmoninux/qemu qemu
+	cd download && git clone -b hish-dev --depth=1 https://github.com/harmoninux/qemu qemu
