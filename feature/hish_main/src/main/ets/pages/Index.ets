@@ -361,14 +361,6 @@ struct PcIndex {
 struct PhoneOrTablet {
   @StorageLink(appOption.novelWriterOpen) novelOpen: boolean = false
 
-  onBackPress(): boolean {
-    if (this.novelOpen) {
-      this.novelOpen = false
-      return true
-    }
-    return false
-  }
-
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
     Column() {
@@ -397,12 +389,22 @@ struct PhoneOrTablet {
 
 }
 
+@Entry
 @Component
 export struct Index {
   isPc: boolean = deviceInfo.deviceType === '2in1'
 
   aboutToAppear(): void {
     // webview.WebviewController.setWebDebuggingAccess(true)
+  }
+
+  onBackPress(): boolean {
+    const novelOpen = AppStorage.get<boolean>(appOption.novelWriterOpen) ?? false
+    if (novelOpen) {
+      AppStorage.setOrCreate(appOption.novelWriterOpen, false)
+      return true
+    }
+    return false
   }
 
   build() {
