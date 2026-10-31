@@ -68,6 +68,9 @@ class appOption {
   static codeartsUrl = 'codeartsUrl';                 // 云码道网页地址
   static codeartsDarkInject = 'codeartsDarkInject';   // 是否注入暗色
   static codeartsDrawerOpen = 'codeartsDrawerOpen';   // 抽屉开合（运行时，不入 preference）
+
+  // 小说写作
+  static novelWriterOpen = 'novelWriterOpen';         // 小说写作浮层开合（运行时）
 }
 
 async function savePreference(key: string, value: object | string | boolean | number, context: UIContext) {

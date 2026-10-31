@@ -108,8 +108,14 @@ button.ghost{background:transparent;border:1px solid var(--border);color:var(--t
   <div class="card">
     <div class="card-title">数据管理</div>
     <button class="ghost sm" id="btnExport" style="margin-bottom:6px;width:auto">导出全部数据</button><br>
-    <button class="ghost sm" id="btnImport" style="width:auto">导入数据</button>
+    <button class="ghost sm" id="btnImport" style="margin-bottom:6px;width:auto">导入数据</button>
     <input type="file" id="importFile" accept=".json" style="display:none">
+  </div>
+  <div class="card">
+    <div class="card-title">终端同步 (共享文件夹)</div>
+    <p style="font-size:11px;color:var(--dim);margin-bottom:8px">数据保存到 /mnt/share/novel/data.json，终端智能体可读写</p>
+    <button class="ghost sm" id="btnSyncSave" style="margin-bottom:6px;width:auto">同步到终端</button><br>
+    <button class="ghost sm" id="btnSyncLoad" style="width:auto">从终端加载</button>
   </div>
   <button id="btnSaveSettings" style="width:100%">保存设置</button>
 </div>
@@ -294,6 +300,18 @@ $('#btnImport').onclick=()=>$('#importFile').click();
 $('#importFile').onchange=e=>{
   const f=e.target.files[0];if(!f)return;
   const r=new FileReader();r.onload=()=>{try{state=Object.assign(state,JSON.parse(r.result));save();renderCharList();renderWbList();renderChatCharSelect();renderChat();loadSettingsForm();setStatus('导入成功','ok');}catch(err){setStatus('导入失败: '+err.message,true);}};r.readAsText(f);
+};
+
+// Sync to/from terminal shared folder
+$('#btnSyncSave').onclick=()=>{
+  if(!window.native){setStatus('原生桥不可用',true);return;}
+  const res=JSON.parse(native.saveToSharedFolder(JSON.stringify(state,null,2)));
+  if(res.ok){setStatus('已同步到 '+res.path,'ok');}else{setStatus('同步失败: '+res.error,true);}
+};
+$('#btnSyncLoad').onclick=()=>{
+  if(!window.native){setStatus('原生桥不可用',true);return;}
+  const res=JSON.parse(native.loadFromSharedFolder());
+  if(res.ok){try{state=Object.assign(state,JSON.parse(res.data));save();renderCharList();renderWbList();renderChatCharSelect();renderChat();loadSettingsForm();setStatus('从终端加载成功','ok');}catch(err){setStatus('解析失败: '+err.message,true);}}else{setStatus('加载失败: '+res.error,true);}
 };
 
 // Init

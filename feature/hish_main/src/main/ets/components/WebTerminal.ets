@@ -176,9 +176,9 @@ export default struct WebTerminal {
   }
 
   @Builder
-  codeartsButton() {
+  novelButton() {
     Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
-      SymbolGlyph($r('sys.symbol.cloud'))
+      SymbolGlyph($r('sys.symbol.text_alignleft'))
         .fontSize(16)
         .width(16).height(16)
         .fontColor([this.keyFontColor])
@@ -189,8 +189,8 @@ export default struct WebTerminal {
     .margin(VKeyMargin)
     .attributeModifier(this.immersiveButton)
     .onClick(() => {
-      const open = AppStorage.get(appOption.codeartsDrawerOpen) as boolean | undefined
-      AppStorage.setOrCreate(appOption.codeartsDrawerOpen, !(open === true))
+      const open = AppStorage.get(appOption.novelWriterOpen) as boolean | undefined
+      AppStorage.setOrCreate(appOption.novelWriterOpen, !(open === true))
     })
   }
 
@@ -314,7 +314,7 @@ export default struct WebTerminal {
           this.buildVKey('F4', FunctionKeySequences.F4);
           this.buildVKey('F5', FunctionKeySequences.F5);
           this.buildVKey('F6', FunctionKeySequences.F6);
-          this.codeartsButton();
+          this.novelButton();
           this.settingsButton();
         }
         .margin({ left: 5, right: 5 })
@@ -352,7 +352,7 @@ export default struct WebTerminal {
         Row() {
           this.buildVKey('TAB', NormalKeySequences.TAB);
           this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
-          this.codeartsButton();
+          this.novelButton();
 
           Row().layoutWeight(1);
 

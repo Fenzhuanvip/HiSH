@@ -359,7 +359,7 @@ struct PcIndex {
 
 @Component
 struct PhoneOrTablet {
-  @State novelOpen: boolean = false
+  @StorageLink(appOption.novelWriterOpen) novelOpen: boolean = false
 
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
@@ -371,7 +371,7 @@ struct PhoneOrTablet {
     .width('100%')
     .height('100%')
 
-    // 小说写作浮层
+    // 小说写作浮层（由 FN 快捷键 toggled）
     if (this.novelOpen) {
       Column() {
         NovelWriter()
@@ -380,18 +380,6 @@ struct PhoneOrTablet {
       .height('100%')
       .backgroundColor('#1a1b26')
     }
-
-    // 小说写作入口按钮 + 关闭按钮
-    Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
-      SymbolGlyph(this.novelOpen ? $r('sys.symbol.xmark') : $r('sys.symbol.text_alignleft'))
-        .fontSize(16)
-        .fontColor(['#ffffff'])
-    }
-    .width(32).height(32)
-    .margin({ top: 10, right: 10 })
-    .backgroundColor('#24283b')
-    .borderRadius(16)
-    .onClick(() => { this.novelOpen = !this.novelOpen })
 
     CodeArtsDrawer()
     }
