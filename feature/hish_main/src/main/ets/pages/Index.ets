@@ -13,7 +13,6 @@ import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
 import { ImmersiveButtonModifier, ImmersivePrimaryButtonModifier } from '../lib/immersiveButton';
 import { CodeArtsDrawer } from '../components/CodeArtsDrawer';
-import { NovelWriter } from '../components/NovelWriter';
 
 @Component
 struct PcIndex {
@@ -59,14 +58,6 @@ struct PcIndex {
       primaryTitle: $r('app.string.user_guide_title'),
       contentBuilder: () => {
         this.buildGuideList();
-      }
-    })
-  })
-  novelWriterController: CustomDialogController = new CustomDialogController({
-    builder: CustomContentDialog({
-      primaryTitle: '小说写作',
-      contentBuilder: () => {
-        this.buildNovelWriter();
       }
     })
   })
@@ -173,24 +164,6 @@ struct PcIndex {
           .attributeModifier(this.immersiveButton)
           .onClick((event: ClickEvent) => {
             this.userGuideController.open()
-          })
-
-          Button({
-            type: ButtonType.Normal,
-            buttonStyle: ButtonStyleMode.TEXTUAL,
-            controlSize: ControlSize.SMALL
-          }) {
-            SymbolGlyph($r('sys.symbol.text_alignleft'))
-              .fontSize('20vp')
-              .width(20)
-              .height(20)
-              .fontColor(['#ffffff'])
-          }
-          .borderRadius(4)
-          .padding(4)
-          .attributeModifier(this.immersiveButton)
-          .onClick((event: ClickEvent) => {
-            this.novelWriterController.open()
           })
         }
       }
@@ -350,16 +323,10 @@ struct PcIndex {
       }
     }
   }
-
-  @Builder
-  buildNovelWriter() {
-    NovelWriter()
-  }
 }
 
 @Component
 struct PhoneOrTablet {
-  @StorageLink(appOption.novelWriterOpen) novelOpen: boolean = false
   immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
 
   build() {
@@ -371,29 +338,6 @@ struct PhoneOrTablet {
     }
     .width('100%')
     .height('100%')
-
-    // 小说写作浮层（由 FN 快捷键 toggled）
-    // 与 CodeArtsDrawer 同模式：始终挂载 + Visibility 控制显隐 + 长按 X 关闭
-    Stack({ alignContent: Alignment.TopEnd }) {
-      NovelWriter()
-
-      Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
-        SymbolGlyph($r('sys.symbol.xmark'))
-          .fontSize(16)
-          .fontColor(['#c0caf5'])
-      }
-      .width(20).height(20)
-      .margin({ top: 10, right: 10 })
-      .attributeModifier(this.immersiveButton)
-      .gesture(
-        LongPressGesture({ duration: 500 })
-          .onAction(() => { this.novelOpen = false })
-      )
-    }
-    .width('100%')
-    .height('100%')
-    .backgroundColor('#1a1b26')
-    .visibility(this.novelOpen ? Visibility.Visible : Visibility.None)
 
     CodeArtsDrawer()
     }

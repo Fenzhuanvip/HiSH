@@ -178,25 +178,6 @@ export default struct WebTerminal {
   }
 
   @Builder
-  novelButton() {
-    Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
-      SymbolGlyph($r('sys.symbol.text_alignleft'))
-        .fontSize(16)
-        .width(16).height(16)
-        .fontColor([this.keyFontColor])
-    }
-    .height(VKeyHeight)
-    .width(VKeyHeight)
-    .borderRadius(VKeyRadius)
-    .margin(VKeyMargin)
-    .attributeModifier(this.immersiveButton)
-    .onClick(() => {
-      const open = AppStorage.get(appOption.novelWriterOpen) as boolean | undefined
-      AppStorage.setOrCreate(appOption.novelWriterOpen, !(open === true))
-    })
-  }
-
-  @Builder
   codeartsButton() {
     Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
       SymbolGlyph($r('sys.symbol.cloud'))
@@ -335,7 +316,6 @@ export default struct WebTerminal {
           this.buildVKey('F4', FunctionKeySequences.F4);
           this.buildVKey('F5', FunctionKeySequences.F5);
           this.buildVKey('F6', FunctionKeySequences.F6);
-          this.novelButton();
           this.settingsButton();
         }
         .margin({ left: 5, right: 5 })
