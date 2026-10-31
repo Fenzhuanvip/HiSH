@@ -360,6 +360,7 @@ struct PcIndex {
 @Component
 struct PhoneOrTablet {
   @StorageLink(appOption.novelWriterOpen) novelOpen: boolean = false
+  immersiveButton: ImmersiveButtonModifier = new ImmersiveButtonModifier()
 
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
@@ -372,14 +373,27 @@ struct PhoneOrTablet {
     .height('100%')
 
     // 小说写作浮层（由 FN 快捷键 toggled）
-    if (this.novelOpen) {
-      Column() {
-        NovelWriter()
+    // 与 CodeArtsDrawer 同模式：始终挂载 + Visibility 控制显隐 + 长按 X 关闭
+    Stack({ alignContent: Alignment.TopEnd }) {
+      NovelWriter()
+
+      Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
+        SymbolGlyph($r('sys.symbol.xmark'))
+          .fontSize(16)
+          .fontColor(['#c0caf5'])
       }
-      .width('100%')
-      .height('100%')
-      .backgroundColor('#1a1b26')
+      .width(20).height(20)
+      .margin({ top: 10, right: 10 })
+      .attributeModifier(this.immersiveButton)
+      .gesture(
+        LongPressGesture({ duration: 500 })
+          .onAction(() => { this.novelOpen = false })
+      )
     }
+    .width('100%')
+    .height('100%')
+    .backgroundColor('#1a1b26')
+    .visibility(this.novelOpen ? Visibility.Visible : Visibility.None)
 
     CodeArtsDrawer()
     }
