@@ -125,7 +125,7 @@ jobs:
             return 1
           }
           install_with_retry "." "root"
-          for m in product/tablet product/phone feature/hish_main; do
+          for m in product/phone feature/hish_main; do
             install_with_retry "$m" "$m" || exit 1
           done
 

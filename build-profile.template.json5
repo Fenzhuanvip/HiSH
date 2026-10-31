@@ -27,18 +27,6 @@
   },
   "modules": [
     {
-      "name": "tablet",
-      "srcPath": "./product/tablet",
-      "targets": [
-        {
-          "name": "default",
-          "applyToProducts": [
-            "default"
-          ]
-        }
-      ]
-    },
-    {
       "name": "phone",
       "srcPath": "./product/phone",
       "targets": [
