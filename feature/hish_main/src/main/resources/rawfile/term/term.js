@@ -475,9 +475,9 @@ function setupEventListeners() {
     });
 
     // 4a-bis. 输入法软键盘弹出/收回：移动端 window.innerHeight 不变，
-    //         ResizeObserver 在收回时可能不触发或容器高度滞后，
-    //         导致 rows 不恢复、画面卡在半截。visualViewport.resize
-    //         对软键盘开合必然触发，这里主动延迟 fit + 全屏 refresh。
+    //         ResizeObserver 在收回时可能不触发或容器高度滞后。
+    //         visualViewport.resize 对软键盘开合必然触发，这里主动延迟 fit，
+    //         fit 会触发 onResize -> native.resize -> QGA setTtySize 同步 pty winsize。
     if (window.visualViewport) {
         var vvFitTimer = 0;
         window.visualViewport.addEventListener('resize', () => {

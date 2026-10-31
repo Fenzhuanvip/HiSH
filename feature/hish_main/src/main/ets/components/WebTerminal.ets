@@ -10,6 +10,7 @@ import { SymbolGlyphModifier } from '@kit.ArkUI';
 import stringToArrayBuffer from '../lib/stringToArrayBuffer';
 import fileToDataUrl from '../lib/fileToDataUrl';
 import { ImmersiveButtonModifier, ImmersiveToggleModifier } from '../lib/immersiveButton';
+import { QemuAgentManager, AgentPriority } from '../lib/QemuAgentManager';
 import {
   applyVirtualKeyModifiers,
   FunctionKeySequences,
@@ -48,6 +49,7 @@ export default struct WebTerminal {
   webviewController: WebviewController = new webview.WebviewController()
   utf8Decoder = util.TextDecoder.create('utf-8', { ignoreBOM: true })
   resizeTimeout?: number = undefined
+  private ttyResizeTimer?: number = undefined
   applicationMode: boolean = false
   private writePort?: webview.WebMessagePort = undefined
   private portReady: boolean = false
@@ -450,10 +452,30 @@ export default struct WebTerminal {
 
   async resize(width: number, height: number): Promise<void> {
     hilog.info(DOMAIN, "WebTerminal", 'on resize: %{public}d, %{public}d', width, height)
-    // 存储终端行列数，VmStatusBar 定时刷新时通过 QGA setTtySize (TIOCSWINSZ) 设置 Guest 串坣终端大尝。
-    // 丝冝坑串坣坑逝 \x1b[8;rows;cols;t (XTWINOPS)，Linux 串坣终端丝认该 xterm 庝列，会回显乱砝。
     AppStorage.setOrCreate(appOption.terminalCols, width)
     AppStorage.setOrCreate(appOption.terminalRows, height)
+    if (this.ttyResizeTimer) clearTimeout(this.ttyResizeTimer)
+    this.ttyResizeTimer = setTimeout(() => {
+      this.ttyResizeTimer = undefined
+      this.applyTtySize(width, height)
+    }, 120)
+  }
+
+  private async applyTtySize(cols: number, rows: number): Promise<void> {
+    const c = Math.floor(cols)
+    const r = Math.floor(rows)
+    if (c < 2 || r < 1 || c > 512 || r > 256) return
+    try {
+      const agent = await QemuAgentManager.acquire('WebTerminal', AgentPriority.LOW, 2000)
+      if (!agent) return
+      try {
+        await agent.setTtySize(c, r)
+      } finally {
+        await QemuAgentManager.release('WebTerminal')
+      }
+    } catch (e) {
+      hilog.warn(DOMAIN, 'WebTerminal', 'applyTtySize failed: %{public}s', JSON.stringify(e))
+    }
   }
 
   // 性能优化：输出缓冲区
