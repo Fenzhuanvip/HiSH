@@ -37,7 +37,7 @@ export default struct WebTerminal {
   @Watch('onFontFamilyChanged') @StorageProp(appOption.terminalFontFamily) fontFamily: string = 'Default'
   @Watch('onCursorShapeChanged') @StorageProp(appOption.terminalCursorShape) cursorShape: CursorShape | null = null
   @Watch('onCursorBlinkChanged') @StorageProp(appOption.terminalCursorBlink) cursorBlink: boolean | null = null
-  @Watch('saveShowVirtKey') @StorageProp(appOption.showVirtKey) showVirtKey: boolean = true
+  @Watch('saveShowVirtKey') @StorageLink(appOption.showVirtKey) showVirtKey: boolean = true
   @Watch('onLigaturesChanged') @StorageProp(appOption.terminalLigatures) termLigatures: boolean = false
   @Watch('onItalicChanged') @StorageProp(appOption.terminalItalic) termItalic: boolean = true
   @StorageProp(appOption.terminalWebglRenderer) termWebgl: boolean = false
@@ -376,7 +376,7 @@ export default struct WebTerminal {
           Row().layoutWeight(1);
 
           this.buildVKey('PGDN', NormalKeySequences.PGDN);
-          this.buildVKey('←', NormalKeySequences.LEFT, NormalKeySequences.LEFT_APP);
+          this.buildVKey('↝', NormalKeySequences.LEFT, NormalKeySequences.LEFT_APP);
           this.buildVKey('↓', NormalKeySequences.DOWN, NormalKeySequences.DOWN_APP);
           this.buildVKey('→', NormalKeySequences.RIGHT, NormalKeySequences.RIGHT_APP);
           this.hideVKeyButton();
@@ -450,8 +450,8 @@ export default struct WebTerminal {
 
   async resize(width: number, height: number): Promise<void> {
     hilog.info(DOMAIN, "WebTerminal", 'on resize: %{public}d, %{public}d', width, height)
-    // 存储终端行列数，VmStatusBar 定时刷新时通过 QGA setTtySize (TIOCSWINSZ) 设置 Guest 串口终端大小。
-    // 不再向串口发送 \x1b[8;rows;cols;t (XTWINOPS)，Linux 串口终端不认该 xterm 序列，会回显乱码。
+    // 存储终端行列数，VmStatusBar 定时刷新时通过 QGA setTtySize (TIOCSWINSZ) 设置 Guest 串坣终端大尝。
+    // 丝冝坑串坣坑逝 \x1b[8;rows;cols;t (XTWINOPS)，Linux 串坣终端丝认该 xterm 庝列，会回显乱砝。
     AppStorage.setOrCreate(appOption.terminalCols, width)
     AppStorage.setOrCreate(appOption.terminalRows, height)
   }

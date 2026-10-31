@@ -403,22 +403,12 @@ struct PhoneOrTablet {
 
 }
 
-@Entry
 @Component
 export struct Index {
   isPc: boolean = deviceInfo.deviceType === '2in1'
 
   aboutToAppear(): void {
     // webview.WebviewController.setWebDebuggingAccess(true)
-  }
-
-  onBackPress(): boolean {
-    const novelOpen = AppStorage.get<boolean>(appOption.novelWriterOpen) ?? false
-    if (novelOpen) {
-      AppStorage.setOrCreate(appOption.novelWriterOpen, false)
-      return true
-    }
-    return false
   }
 
   build() {
