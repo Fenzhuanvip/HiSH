@@ -25,9 +25,6 @@
         "name": "ohos.permission.KEEP_BACKGROUND_RUNNING"
       },
       {
-        "name": "ohos.permission.PUBLISH_LIVE_VIEW"
-      },
-      {
         "name": "ohos.permission.APPROXIMATELY_LOCATION",
         "reason": "$string:location_reason",
         "usedScene": {
