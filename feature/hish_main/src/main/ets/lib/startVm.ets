@@ -1,5 +1,6 @@
 import { fileIo as fs } from '@kit.CoreFileKit'
 import { bundleManager } from '@kit.AbilityKit'
+import { hilog } from '@kit.PerformanceAnalysisKit'
 import napi from 'libhish_main.so'
 import { defaultEmulator, PortMapping } from '../model/Emulator'
 import deviceInfo from '@ohos.deviceInfo'
@@ -40,7 +41,7 @@ function startVm(options: VmOptions): boolean {
     'iommu=none,its=off,usb=off,virtualization=off,memory-backend=mem0,compact-highmem=on,' +
     'dump-guest-core=off,mem-merge=off,hmat=off',
     '-overcommit', 'cpu-pm=off',
-    '-cpu', 'max,pauth-impdef=on,sve=off,pmu=off', '-accel', 'tcg,thread=multi,tb-size=4096,split-wx=off',
+    '-cpu', 'max,pauth-impdef=on,sve=off,pmu=off', '-accel', 'tcg,thread=multi,tb-size=4096',
     "-object", "rng-random,filename=/dev/urandom,id=rng0",
     "-device", "virtio-rng-pci-non-transitional,rng=rng0",
     '-rtc', 'base=utc,clock=host', '-L', options.baseDir]
@@ -50,7 +51,7 @@ function startVm(options: VmOptions): boolean {
   const kernel = ['-kernel', options.kernel]
   const network = ["-global", "virtio-net-pci.ctrl_guest_offloads=off", "-global", "virtio-net-pci.packed=on",
     "-device", "virtio-net-pci-non-transitional," +
-    "netdev=eth0,csum=on,gso=on,guest_tso4=on,guest_tso6=on,guest_ecn=off,mrg_rxbuf=on,tx=bh,mq=on,vectors=10",
+    "netdev=eth0,csum=on,gso=on,guest_tso4=on,guest_tso6=on,guest_ecn=off,mrg_rxbuf=on,tx=bh",
     '-netdev', "user,id=eth0" + options.portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('') + buildHostfwd8889()]
   const shared =
     ["-fsdev", "local,security_model=mapped-file,id=fsdev0,cache=loose,path=" + options.sharedFolder + sharedFolderOption,
@@ -107,8 +108,13 @@ function startVm(options: VmOptions): boolean {
 
   // JIT 策略：应用市场版(app.hackeris.hish)因商店政策限制强制走 TCI；
   // 其余包名（自签名 dev.hackeris.hish 等）下，phone 也可启用 JIT（Mate60Pro+ 专属分支）
-  const appBundleName: string = bundleManager.getBundleInfoForSelfSync(
-    bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT).name;
+  let appBundleName = ''
+  try {
+    appBundleName = bundleManager.getBundleInfoForSelfSync(
+      bundleManager.BundleFlag.GET_BUNDLE_INFO_DEFAULT).name;
+  } catch (e) {
+    hilog.error(1, 'startVm', `getBundleInfoForSelfSync failed: ${JSON.stringify(e)}`);
+  }
   const forceJit = AppStorage.get<boolean>('forceEnableJit') ?? true
   const supportJit: boolean = appBundleName !== 'app.hackeris.hish' &&
     (forceJit || deviceInfo.deviceType !== 'phone');
