@@ -28,8 +28,12 @@ const INJECT_SCRIPT = `(function(){
       (function(p, language){
         btn.onclick = function(){
           var t = p.innerText || '';
-          window.__hishQueue.push({content:t, lang:language});
-          btn.textContent = '已入队';
+          try {
+            var res = native.saveCodeBlockToShared(t, language);
+            btn.textContent = (res === 'ok') ? '已保存' : '保存失败';
+          } catch(e) {
+            btn.textContent = '保存失败';
+          }
           setTimeout(function(){ btn.textContent = '存到共享目录'; }, 1500);
         };
       })(codeEl || pre, lang);
@@ -63,6 +67,14 @@ export struct CodeArtsWeb {
         Web({ src: this.url, controller: this.controller })
           .width('100%').height('100%')
           .javaScriptAccess(true)
+          .javaScriptProxy({
+            object: this,
+            name: 'native',
+            methodList: ['saveCodeBlockToShared'],
+            asyncMethodList: [],
+            controller: this.controller,
+            permission: this.proxyPermission()
+          })
           .domStorageAccess(true)
           .imageAccess(true)
           .onlineImageAccess(true)
@@ -133,6 +145,7 @@ export struct CodeArtsWeb {
       this.injectCodeButtons()
       this.startPolling()
     } else {
+      this.drainQueue()
       this.stopPolling()
       this.errorMsg = ''
     }
@@ -151,6 +164,38 @@ export struct CodeArtsWeb {
       clearInterval(this.timer)
       this.timer = -1
     }
+  }
+
+  /** 网页按钮直接调用：立即把代码块写入共享目录，同步返回 'ok'/'fail' */
+  saveCodeBlockToShared(content: string, lang: string): string {
+    try {
+      const sharedHost = AppStorage.get<string>(appOption.sharedHost) ?? ''
+      const ok = saveCodeBlock(sharedHost, content, lang)
+      return ok ? 'ok' : 'fail'
+    } catch (e) {
+      hilog.warn(DOMAIN, TAG, 'saveCodeBlockToShared failed: %{public}s', JSON.stringify(e))
+      return 'fail'
+    }
+  }
+
+  private proxyPermission(): string {
+    let scheme = 'https'
+    let host = 'www.huaweicloud.com'
+    try {
+      const u = this.url
+      const schemeEnd = u.indexOf('://')
+      if (schemeEnd > 0) {
+        scheme = u.substring(0, schemeEnd)
+        const hostStart = schemeEnd + 3
+        let hostEnd = u.length
+        const slashIdx = u.indexOf('/', hostStart)
+        const colonIdx = u.indexOf(':', hostStart)
+        if (slashIdx > 0) hostEnd = Math.min(hostEnd, slashIdx)
+        if (colonIdx > 0) hostEnd = Math.min(hostEnd, colonIdx)
+        host = u.substring(hostStart, hostEnd)
+      }
+    } catch (e) {}
+    return `{"javascriptProxyPermission":{"urlPermissionList":[{"scheme":"${scheme}","host":"${host}","port":"","path":""}]}}`
   }
 
   private injectDark(): void {
