@@ -474,6 +474,26 @@ function setupEventListeners() {
         }, 100);
     });
 
+    // 4a-bis. 输入法软键盘弹出/收回：移动端 window.innerHeight 不变，
+    //         ResizeObserver 在收回时可能不触发或容器高度滞后，
+    //         导致 rows 不恢复、画面卡在半截。visualViewport.resize
+    //         对软键盘开合必然触发，这里主动延迟 fit + 全屏 refresh。
+    if (window.visualViewport) {
+        var vvFitTimer = 0;
+        window.visualViewport.addEventListener('resize', () => {
+            if (vvFitTimer) clearTimeout(vvFitTimer);
+            vvFitTimer = setTimeout(() => {
+                vvFitTimer = 0;
+                if (!term) return;
+                try {
+                    fitAddon.fit();
+                    if (typeof forceFit === 'function') forceFit();
+                    term.refresh(0, term.rows - 1);
+                } catch (e) { /* ignore */ }
+            }, 200);
+        });
+    }
+
     // 4b. Observe container size changes that do NOT fire window resize
     //     (ArkUI layout changes, drawer/panel animations, soft keyboard).
     //     Guards against the terminal being too narrow: whenever the
