@@ -361,6 +361,14 @@ struct PcIndex {
 struct PhoneOrTablet {
   @StorageLink(appOption.novelWriterOpen) novelOpen: boolean = false
 
+  onBackPress(): boolean {
+    if (this.novelOpen) {
+      this.novelOpen = false
+      return true
+    }
+    return false
+  }
+
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
     Column() {
@@ -379,11 +387,6 @@ struct PhoneOrTablet {
       .width('100%')
       .height('100%')
       .backgroundColor('#1a1b26')
-      .bindBack({
-        onBack: () => {
-          this.novelOpen = false
-        }
-      })
     }
 
     CodeArtsDrawer()
