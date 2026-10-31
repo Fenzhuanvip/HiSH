@@ -84,12 +84,35 @@ export default class EntryAbility extends UIAbility {
   async prepareForSharedFolder(appContext: common.ApplicationContext) {
 
     const sharedGuest = '/mnt/share'
+    let sharedHost: string = ''
 
-    const documentViewPicker = new picker.DocumentViewPicker()
-    let documentSaveResult = await documentViewPicker.save({ pickerMode: picker.DocumentPickerMode.DOWNLOAD })
-    const sharedHost = new fileUri.FileUri(documentSaveResult[0]).path + '/'
+    try {
+      const documentViewPicker = new picker.DocumentViewPicker()
+      let documentSaveResult = await documentViewPicker.save({ pickerMode: picker.DocumentPickerMode.DOWNLOAD })
+      if (documentSaveResult && documentSaveResult.length > 0) {
+        sharedHost = new fileUri.FileUri(documentSaveResult[0]).path + '/'
+      } else {
+        hilog.warn(DOMAIN, 'testTag', 'DocumentViewPicker returned empty, fallback to filesDir/share')
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, 'testTag', 'DocumentViewPicker failed, fallback to filesDir/share: %{public}s', JSON.stringify(e))
+    }
 
-    //  曾经使用 oldSharedHost 作为共享文件夹，现将内容迁移到新的 sharedHost
+    // 选择器失败/取消/返回空时回退到应用内部目录（华为云等环境下 picker 可能不可用）
+    if (sharedHost.length === 0) {
+      sharedHost = appContext.filesDir + '/share/'
+    }
+
+    // 确保共享目录存在
+    try {
+      if (!await fs.access(sharedHost, fs.AccessModeType.EXIST)) {
+        await fs.mkdir(sharedHost)
+      }
+    } catch (e) {
+      hilog.error(DOMAIN, 'testTag', 'Failed to create shared folder: %{public}s, error: %{public}s', sharedHost, JSON.stringify(e))
+    }
+
+    // 曾经使用 oldSharedHost 作为共享文件夹，现将内容迁移到新的 sharedHost
     const oldSharedHost = appContext.filesDir + '/' + 'share'
     await this.moveToNewSharedFolder(oldSharedHost, sharedHost);
 
@@ -111,7 +134,10 @@ export default class EntryAbility extends UIAbility {
     const portMappingRaw = emulatorToStart.portMapping
     const init = emulatorToStart.init
 
-    const sharedFolder = AppStorage.get(appOption.sharedHost) as string
+    let sharedFolder = AppStorage.get(appOption.sharedHost) as string
+    if (!sharedFolder || sharedFolder.length === 0) {
+      sharedFolder = this.context.getApplicationContext().filesDir + '/share/'
+    }
 
     const vmBaseDir = AppStorage.get(appOption.vmBaseDir) as string
     const kernelFile = AppStorage.get(appOption.kernel) as string
