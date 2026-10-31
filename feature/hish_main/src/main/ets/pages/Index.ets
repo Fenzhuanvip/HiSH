@@ -379,6 +379,11 @@ struct PhoneOrTablet {
       .width('100%')
       .height('100%')
       .backgroundColor('#1a1b26')
+      .bindBack({
+        onBack: () => {
+          this.novelOpen = false
+        }
+      })
     }
 
     CodeArtsDrawer()
