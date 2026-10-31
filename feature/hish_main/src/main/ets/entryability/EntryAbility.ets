@@ -4,7 +4,6 @@ import { window, KeyboardAvoidMode, PromptAction, UIContext } from '@kit.ArkUI';
 import common from '@ohos.app.ability.common';
 import preference from '@ohos.data.preferences';
 import fs from '@ohos.file.fs';
-import { deviceInfo } from '@kit.BasicServicesKit';
 import napi from 'libhish_main.so';
 import appOption, { CursorShape, UserFont } from '../model/appOption'
 import { startVm } from '../lib/startVm';
@@ -60,12 +59,6 @@ export default class EntryAbility extends UIAbility {
       mainWindow.setWindowKeepScreenOn(AppStorage.get(appOption.keepScreenOn) as boolean);
 
       AppStorage.setOrCreate('mainWindow', mainWindow)
-
-      if (canIUse('SystemCapability.Window.SessionManager')
-        && deviceInfo.deviceType === '2in1') {
-        mainWindow.setWindowDecorVisible(false);
-        mainWindow.setWindowDecorHeight(48);
-      }
 
       await this.prepareForSharedFolder(appContext)
       const result = this.startDefaultEmulator()
@@ -389,13 +382,7 @@ export default class EntryAbility extends UIAbility {
   }
 
   private getDefaultTerminalFontSize(): number {
-    if (deviceInfo.deviceType === 'phone'
-      || deviceInfo.deviceType === 'default') {
-      return 11;
-    } else if (deviceInfo.deviceType === 'tablet') {
-      return 13;
-    }
-    return 15;
+    return 11;
   }
 
   private promptPortUsedMessage(uiContext: UIContext, portSkipped: number[]) {

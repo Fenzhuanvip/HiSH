@@ -78,10 +78,6 @@ function startVm(options: VmOptions): boolean {
     '-device', 'virtserialport,chardev=qga0,bus=virtio-serial0.0,name=org.qemu.guest_agent.0'
   ]
 
-  const sharedUserFolder = deviceInfo.deviceType !== '2in1' ? [] :
-    ["-fsdev", "local,security_model=mapped-file,id=fsdev1,path=/storage/Users/currentUser", "-device",
-      "virtio-9p-pci,id=fs1,fsdev=fsdev1,mount_tag=usershare"]
-
   const args = [
     'qemu-system-aarch64',
     ...basic,
@@ -93,8 +89,7 @@ function startVm(options: VmOptions): boolean {
     ...drive,
     ...kernelParam,
     ...monitor,
-    ...qga,
-    ...sharedUserFolder
+    ...qga
   ]
 
   if (fs.accessSync(options.serialUnixSocket, fs.AccessModeType.EXIST)) {
