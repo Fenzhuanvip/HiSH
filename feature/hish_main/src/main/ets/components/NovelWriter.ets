@@ -1,5 +1,6 @@
 import { webview } from '@kit.ArkWeb';
 import fs from '@ohos.file.fs';
+import util from '@ohos.util';
 import appOption from '../model/appOption';
 
 /**
@@ -53,8 +54,8 @@ export struct NovelWriter {
       const buf = new ArrayBuffer(stat.size)
       fs.readSync(file.fd, buf)
       fs.closeSync(file)
-      const decoder = new TextDecoder('utf-8')
-      const jsonStr = decoder.decode(buf)
+      const decoder = util.TextDecoder.create('utf-8')
+      const jsonStr = decoder.decodeWithStream(buf)
       return JSON.stringify({ ok: true, data: jsonStr })
     } catch (e) {
       return JSON.stringify({ ok: false, error: String(e) })
