@@ -194,6 +194,25 @@ export default struct WebTerminal {
     })
   }
 
+  @Builder
+  codeartsButton() {
+    Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
+      SymbolGlyph($r('sys.symbol.cloud'))
+        .fontSize(16)
+        .width(16).height(16)
+        .fontColor([this.keyFontColor])
+    }
+    .height(VKeyHeight)
+    .width(VKeyHeight)
+    .borderRadius(VKeyRadius)
+    .margin(VKeyMargin)
+    .attributeModifier(this.immersiveButton)
+    .onClick(() => {
+      const open = AppStorage.get(appOption.codeartsDrawerOpen) as boolean | undefined
+      AppStorage.setOrCreate(appOption.codeartsDrawerOpen, !(open === true))
+    })
+  }
+
   private settingsButtonOptions(): MenuElement[] {
     return [{
       value: $r('app.string.menu_emulator_management'),
@@ -352,7 +371,7 @@ export default struct WebTerminal {
         Row() {
           this.buildVKey('TAB', NormalKeySequences.TAB);
           this.toggleCtrlKey('CTRL', () => this.toggleCtrl());
-          this.novelButton();
+          this.codeartsButton();
 
           Row().layoutWeight(1);
 
