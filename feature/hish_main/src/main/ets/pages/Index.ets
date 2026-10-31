@@ -13,6 +13,7 @@ import UserGuide from "../components/UserGuide";
 import { webview } from "@kit.ArkWeb";
 import { ImmersiveButtonModifier, ImmersivePrimaryButtonModifier } from '../lib/immersiveButton';
 import { CodeArtsDrawer } from '../components/CodeArtsDrawer';
+import { NovelWriter } from '../components/NovelWriter';
 
 @Component
 struct PcIndex {
@@ -58,6 +59,14 @@ struct PcIndex {
       primaryTitle: $r('app.string.user_guide_title'),
       contentBuilder: () => {
         this.buildGuideList();
+      }
+    })
+  })
+  novelWriterController: CustomDialogController = new CustomDialogController({
+    builder: CustomContentDialog({
+      primaryTitle: '小说写作',
+      contentBuilder: () => {
+        this.buildNovelWriter();
       }
     })
   })
@@ -164,6 +173,24 @@ struct PcIndex {
           .attributeModifier(this.immersiveButton)
           .onClick((event: ClickEvent) => {
             this.userGuideController.open()
+          })
+
+          Button({
+            type: ButtonType.Normal,
+            buttonStyle: ButtonStyleMode.TEXTUAL,
+            controlSize: ControlSize.SMALL
+          }) {
+            SymbolGlyph($r('sys.symbol.text_alignleft'))
+              .fontSize('20vp')
+              .width(20)
+              .height(20)
+              .fontColor(['#ffffff'])
+          }
+          .borderRadius(4)
+          .padding(4)
+          .attributeModifier(this.immersiveButton)
+          .onClick((event: ClickEvent) => {
+            this.novelWriterController.open()
           })
         }
       }
@@ -323,10 +350,16 @@ struct PcIndex {
       }
     }
   }
+
+  @Builder
+  buildNovelWriter() {
+    NovelWriter()
+  }
 }
 
 @Component
 struct PhoneOrTablet {
+  @State novelOpen: boolean = false
 
   build() {
     Stack({ alignContent: Alignment.TopEnd }) {
@@ -337,6 +370,28 @@ struct PhoneOrTablet {
     }
     .width('100%')
     .height('100%')
+
+    // 小说写作浮层
+    if (this.novelOpen) {
+      Column() {
+        NovelWriter()
+      }
+      .width('100%')
+      .height('100%')
+      .backgroundColor('#1a1b26')
+    }
+
+    // 小说写作入口按钮 + 关闭按钮
+    Button({ buttonStyle: ButtonStyleMode.TEXTUAL }) {
+      SymbolGlyph(this.novelOpen ? $r('sys.symbol.xmark') : $r('sys.symbol.text_alignleft'))
+        .fontSize(16)
+        .fontColor(['#ffffff'])
+    }
+    .width(32).height(32)
+    .margin({ top: 10, right: 10 })
+    .backgroundColor('#24283b')
+    .borderRadius(16)
+    .onClick(() => { this.novelOpen = !this.novelOpen })
 
     CodeArtsDrawer()
     }

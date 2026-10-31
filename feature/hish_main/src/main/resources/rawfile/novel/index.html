@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>小说写作</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#1a1b26;--surface:#24283b;--border:#3b4261;--text:#c0caf5;--dim:#565f89;--accent:#7aa2f7;--green:#9ece6a;--red:#f7768e;--yellow:#e0af68;--radius:8px}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;height:100vh;overflow:hidden;display:flex;flex-direction:column}
+.tabs{display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 8px;flex-shrink:0}
+.tab{padding:10px 16px;cursor:pointer;color:var(--dim);border-bottom:2px solid transparent;transition:.2s;font-size:13px}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab:hover{color:var(--text)}
+.content{flex:1;overflow-y:auto;padding:16px}
+.hidden{display:none!important}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.card-title{font-size:13px;color:var(--accent);margin-bottom:8px}
+input,textarea,select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px 10px;color:var(--text);font-size:13px;font-family:inherit}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent)}
+textarea{resize:vertical;min-height:60px}
+label{display:block;font-size:12px;color:var(--dim);margin-bottom:4px;margin-top:8px}
+label:first-child{margin-top:0}
+button{background:var(--accent);color:var(--bg);border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600;transition:.2s}
+button:hover{opacity:.85}
+button.sm{padding:4px 10px;font-size:12px}
+button.ghost{background:transparent;border:1px solid var(--border);color:var(--text)}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+.chat-msg{margin-bottom:12px;padding:10px 14px;border-radius:var(--radius);max-width:85%;white-space:pre-wrap;word-break:break-word;line-height:1.6}
+.chat-msg.user{background:#2d3748;margin-left:auto}
+.chat-msg.assistant{background:var(--surface);border:1px solid var(--border);margin-right:auto}
+.chat-msg .role{font-size:11px;color:var(--dim);margin-bottom:4px}
+.chat-input{display:flex;gap:8px;padding:12px;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0}
+.chat-input textarea{flex:1;min-height:44px;max-height:120px}
+.chat-scroll{flex:1;overflow-y:auto;padding:16px}
+.wb-entry{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:8px}
+.wb-entry-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px}
+.toggle{width:36px;height:20px;background:var(--border);border-radius:10px;position:relative;cursor:pointer;transition:.2s;flex-shrink:0}
+.toggle.on{background:var(--green)}
+.toggle::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;background:var(--text);border-radius:50%;transition:.2s}
+.toggle.on::after{left:18px}
+.status{font-size:11px;color:var(--dim);padding:4px 12px;text-align:center;flex-shrink:0}
+.status.error{color:var(--red)}
+.status.ok{color:var(--green)}
+.loading{display:inline-block;width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;color:var(--dim);padding:40px 20px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="tabs">
+  <div class="tab active" data-tab="chat">对话</div>
+  <div class="tab" data-tab="char">角色卡</div>
+  <div class="tab" data-tab="world">世界书</div>
+  <div class="tab" data-tab="settings">设置</div>
+</div>
+<div id="tab-chat" class="content" style="display:flex;flex-direction:column;padding:0">
+  <div class="row" style="padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0">
+    <select id="chatCharSelect"><option value="">选择角色卡...</option></select>
+    <button class="ghost sm" id="btnNewChat">新对话</button>
+    <button class="ghost sm" id="btnAutoAdvance">自动推进: 关</button>
+  </div>
+  <div class="chat-scroll" id="chatMessages"><div class="empty">选择角色卡后开始对话</div></div>
+  <div class="chat-input">
+    <textarea id="chatInput" placeholder="输入消息... (Enter发送)" rows="1"></textarea>
+    <button id="btnSend">发送</button>
+  </div>
+</div>
+<div id="tab-char" class="content hidden">
+  <div class="row" style="margin-bottom:12px">
+    <select id="charSelect"><option value="">新建角色卡...</option></select>
+    <button class="sm" id="btnNewChar">新建</button>
+    <button class="ghost sm" id="btnDelChar">删除</button>
+  </div>
+  <div class="card">
+    <label>名称</label><input id="charName" placeholder="角色名称">
+    <label>描述 (角色外貌、背景等)</label><textarea id="charDesc" rows="3"></textarea>
+    <label>性格</label><textarea id="charPersonality" rows="2"></textarea>
+    <label>场景 (故事背景设定)</label><textarea id="charScenario" rows="3"></textarea>
+    <label>第一条消息 (角色开场白)</label><textarea id="charFirstMes" rows="3"></textarea>
+    <label>对话示例 (可选)</label><textarea id="charMesExample" rows="3" placeholder="{{user}}: 你好&#10;{{char}}: 你好啊！"></textarea>
+  </div>
+  <button id="btnSaveChar" style="width:100%">保存角色卡</button>
+</div>
+<div id="tab-world" class="content hidden">
+  <div class="row" style="margin-bottom:12px">
+    <input id="wbSearch" placeholder="搜索条目..." style="flex:1">
+    <button class="sm" id="btnNewWb">新增</button>
+  </div>
+  <div id="wbList"></div>
+</div>
+<div id="tab-settings" class="content hidden">
+  <div class="card">
+    <div class="card-title">AI API 设置</div>
+    <label>API 端点 (OpenAI 兼容格式)</label><input id="apiUrl" placeholder="http://localhost:11434/v1/chat/completions">
+    <label>模型名称</label><input id="apiModel" placeholder="deepseek-v3">
+    <label>API Key (可选)</label><input id="apiKey" placeholder="sk-... 或留空">
+    <label>温度 (0-2)</label><input id="apiTemp" type="number" value="0.8" step="0.1" min="0" max="2">
+    <label>最大 Token</label><input id="apiMaxTokens" type="number" value="2048" step="256">
+  </div>
+  <div class="card">
+    <div class="card-title">预设端点</div>
+    <button class="ghost sm" data-url="http://localhost:11434/v1/chat/completions" data-model="deepseek-v3" style="margin-bottom:6px;width:auto">Ollama 本地 (11434)</button><br>
+    <button class="ghost sm" data-url="http://localhost:5800/v1/chat/completions" data-model="deepseek-v4.1-flash" style="margin-bottom:6px;width:auto">dsh-our-free-model (5800)</button><br>
+    <button class="ghost sm" data-url="https://api.siliconflow.cn/v1/chat/completions" data-model="deepseek-ai/DeepSeek-V3" style="margin-bottom:6px;width:auto">SiliconFlow (需Key)</button>
+  </div>
+  <div class="card">
+    <div class="card-title">数据管理</div>
+    <button class="ghost sm" id="btnExport" style="margin-bottom:6px;width:auto">导出全部数据</button><br>
+    <button class="ghost sm" id="btnImport" style="width:auto">导入数据</button>
+    <input type="file" id="importFile" accept=".json" style="display:none">
+  </div>
+  <button id="btnSaveSettings" style="width:100%">保存设置</button>
+</div>
+<div class="status" id="status">就绪</div>
+<script>
+let state={characters:[],worldBook:[],chatHistory:[],currentCharId:'',autoAdvance:false,settings:{apiUrl:'',apiModel:'',apiKey:'',temp:0.8,maxTokens:2048}};
+const $=s=>document.querySelector(s);
+const $$=s=>document.querySelectorAll(s);
+function save(){localStorage.setItem('novel_state',JSON.stringify(state))}
+function load(){try{const s=localStorage.getItem('novel_state');if(s)state=Object.assign(state,JSON.parse(s))}catch(e){}}
+function setStatus(msg,err){const s=$('#status');s.textContent=msg;s.className='status'+(err?' error':'');}
+function escapeHtml(s){return(s||'').replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>');}
+function getChar(){return state.characters.find(x=>x.id===$('#chatCharSelect').value);}
+
+// Tabs
+$$('.tab').forEach(t=>t.onclick=()=>{
+  $$('.tab').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  $$('.content').forEach(c=>c.classList.add('hidden'));
+  $('#tab-'+t.dataset.tab).classList.remove('hidden');
+  if(t.dataset.tab==='char')renderCharList();
+  if(t.dataset.tab==='world')renderWbList();
+  if(t.dataset.tab==='chat')renderChatCharSelect();
+  if(t.dataset.tab==='settings')loadSettingsForm();
+});
+
+// Character Cards
+function renderCharList(){
+  const sel=$('#charSelect');const cur=sel.value;sel.innerHTML='<option value="">新建角色卡...</option>';
+  state.characters.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name||'未命名';sel.appendChild(o)});
+  sel.value=state.currentCharId||cur;loadCharForm();
+}
+function loadCharForm(){
+  const c=state.characters.find(x=>x.id===$('#charSelect').value);
+  if(!c){['charName','charDesc','charPersonality','charScenario','charFirstMes','charMesExample'].forEach(id=>$('#'+id).value='');return;}
+  $('#charName').value=c.name||'';$('#charDesc').value=c.desc||'';$('#charPersonality').value=c.personality||'';
+  $('#charScenario').value=c.scenario||'';$('#charFirstMes').value=c.firstMes||'';$('#charMesExample').value=c.mesExample||'';
+}
+$('#charSelect').onchange=loadCharForm;
+$('#btnNewChar').onclick=()=>{$('#charSelect').value='';loadCharForm();$('#charName').focus();};
+$('#btnDelChar').onclick=()=>{
+  const id=$('#charSelect').value;if(!id)return;
+  state.characters=state.characters.filter(c=>c.id!==id);
+  if(state.currentCharId===id)state.currentCharId='';
+  save();renderCharList();setStatus('已删除');
+};
+$('#btnSaveChar').onclick=()=>{
+  const id=$('#charSelect').value||Date.now().toString();
+  const c={id,name:$('#charName').value,desc:$('#charDesc').value,personality:$('#charPersonality').value,scenario:$('#charScenario').value,firstMes:$('#charFirstMes').value,mesExample:$('#charMesExample').value};
+  const idx=state.characters.findIndex(x=>x.id===id);
+  if(idx>=0)state.characters[idx]=c;else state.characters.push(c);
+  state.currentCharId=id;save();renderCharList();setStatus('已保存: '+(c.name||'未命名'),'ok');
+};
+
+// World Book
+function renderWbList(){
+  const q=$('#wbSearch').value.toLowerCase();
+  const list=$('#wbList');list.innerHTML='';
+  const entries=state.worldBook.filter(e=>!q||(e.keywords||[]).some(k=>k.toLowerCase().includes(q))||(e.content||'').toLowerCase().includes(q));
+  if(!entries.length){list.innerHTML='<div class="empty">暂无条目，点击「新增」创建</div>';return;}
+  entries.forEach(e=>{
+    const idx=state.worldBook.indexOf(e);
+    const d=document.createElement('div');d.className='wb-entry';
+    const kw=(e.keywords||[]).join(', ');
+    d.innerHTML='<div class="wb-entry-header"><input value="'+escapeHtml(kw)+'" placeholder="关键词(逗号分隔)" style="flex:1"><div class="toggle '+(e.enabled?'on':'')+'" data-idx="'+idx+'"></div><span style="cursor:pointer;color:var(--red);font-size:16px;padding:4px" data-del="'+idx+'">✕</span></div><textarea rows="2" data-content="'+idx+'" placeholder="条目内容...">'+escapeHtml(e.content)+'</textarea>';
+    list.appendChild(d);
+  });
+  $$('.toggle[data-idx]').forEach(t=>t.onclick=()=>{state.worldBook[+t.dataset.idx].enabled=!state.worldBook[+t.dataset.idx].enabled;save();renderWbList();});
+  $$('[data-del]').forEach(b=>b.onclick=()=>{state.worldBook.splice(+b.dataset.del,1);save();renderWbList();});
+  $$('[data-content]').forEach(ta=>{ta.oninput=()=>{state.worldBook[+ta.dataset.content].content=ta.value;save();};});
+  $$('.wb-entry-header input').forEach(inp=>{inp.oninput=()=>{const idx=inp.parentElement.querySelector('.toggle').dataset.idx;state.worldBook[+idx].keywords=inp.value.split(',').map(s=>s.trim()).filter(s=>s);save();};});
+}
+$('#wbSearch').oninput=renderWbList;
+$('#btnNewWb').onclick=()=>{state.worldBook.push({keywords:[],content:'',enabled:true});save();renderWbList();};
+
+// Chat
+function renderChatCharSelect(){
+  const sel=$('#chatCharSelect');const cur=sel.value;sel.innerHTML='<option value="">选择角色卡...</option>';
+  state.characters.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.name||'未命名';sel.appendChild(o)});
+  sel.value=cur||state.currentCharId;
+}
+function renderChat(){
+  const box=$('#chatMessages');box.innerHTML='';
+  if(!state.chatHistory.length){box.innerHTML='<div class="empty">选择角色卡后开始对话</div>';return;}
+  state.chatHistory.forEach(m=>{
+    const d=document.createElement('div');d.className='chat-msg '+m.role;
+    const rn=m.role==='user'?'用户':m.role==='assistant'?(getChar()?.name||'AI'):'系统';
+    d.innerHTML='<div class="role">'+escapeHtml(rn)+'</div>'+escapeHtml(m.content);
+    box.appendChild(d);
+  });
+  box.scrollTop=box.scrollHeight;
+}
+$('#chatCharSelect').onchange=()=>{
+  const id=$('#chatCharSelect').value;state.currentCharId=id;
+  const c=state.characters.find(x=>x.id===id);
+  if(c&&c.firstMes){state.chatHistory=[{role:'assistant',content:c.firstMes}];}else{state.chatHistory=[];}
+  save();renderChat();
+};
+$('#btnNewChat').onclick=()=>{state.chatHistory=[];save();renderChat();setStatus('新对话');};
+$('#btnAutoAdvance').onclick=()=>{state.autoAdvance=!state.autoAdvance;$('#btnAutoAdvance').textContent='自动推进: '+(state.autoAdvance?'开':'关');save();};
+
+// World book injection - scan recent text for keywords
+function getActiveWorldBook(text){
+  const recent=(text||'')+'\n'+state.chatHistory.slice(-6).map(m=>m.content).join('\n');
+  return state.worldBook.filter(e=>e.enabled&&(e.keywords||[]).some(k=>recent.toLowerCase().includes(k.toLowerCase()))).map(e=>e.content).join('\n');
+}
+
+// Build OpenAI messages array
+function buildMessages(userInput){
+  const c=getChar();
+  const msgs=[];
+  if(c){
+    let p='你是'+(c.name||'角色')+'。';
+    if(c.desc)p+='\n'+c.desc;
+    if(c.personality)p+='\n性格: '+c.personality;
+    if(c.scenario)p+='\n场景: '+c.scenario;
+    if(c.mesExample)p+='\n对话示例:\n'+c.mesExample.replace(/\{\{char\}\}/g,c.name||'角色').replace(/\{\{user\}\}/g,'用户');
+    msgs.push({role:'system',content:p});
+  }
+  const wb=getActiveWorldBook(userInput);
+  if(wb)msgs.push({role:'system',content:'[世界书]\n'+wb});
+  state.chatHistory.forEach(m=>msgs.push({role:m.role,content:m.content}));
+  if(userInput)msgs.push({role:'user',content:userInput});
+  return msgs;
+}
+
+// Call AI API
+async function callAI(messages){
+  const s=state.settings;
+  if(!s.apiUrl)throw new Error('请先在设置页配置 API 端点');
+  const headers={'Content-Type':'application/json'};
+  if(s.apiKey)headers['Authorization']='Bearer '+s.apiKey;
+  const resp=await fetch(s.apiUrl,{method:'POST',headers,body:JSON.stringify({model:s.apiModel||'deepseek-v3',messages,temperature:parseFloat(s.temp)||0.8,max_tokens:parseInt(s.maxTokens)||2048})});
+  if(!resp.ok){const t=await resp.text();throw new Error('API错误 '+resp.status+': '+t.substring(0,200));}
+  const data=await resp.json();
+  return data.choices[0].message.content;
+}
+
+// Send message
+let sending=false;
+async function sendMessage(){
+  if(sending)return;
+  const input=$('#chatInput');
+  const text=input.value.trim();
+  if(!text&&!state.autoAdvance)return;
+  if(!$('#chatCharSelect').value){setStatus('请先选择角色卡',true);return;}
+  sending=true;const btn=$('#btnSend');btn.innerHTML='<span class="loading"></span>生成中';btn.disabled=true;
+  try{
+    if(text){state.chatHistory.push({role:'user',content:text});input.value='';renderChat();}
+    const msgs=buildMessages('');
+    const reply=await callAI(msgs);
+    state.chatHistory.push({role:'assistant',content:reply});
+    save();renderChat();setStatus('生成完成 ('+reply.length+'字)','ok');
+    // Auto advance: AI continues the story
+    if(state.autoAdvance&&state.chatHistory.length<50){
+      setTimeout(()=>{if(state.autoAdvance){sendMessage();}},1000);
+    }
+  }catch(e){setStatus(e.message,true);}
+  finally{sending=false;btn.textContent='发送';btn.disabled=false;}
+}
+$('#btnSend').onclick=sendMessage;
+$('#chatInput').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}});
+
+// Settings
+function loadSettingsForm(){
+  const s=state.settings;
+  $('#apiUrl').value=s.apiUrl||'';$('#apiModel').value=s.apiModel||'';$('#apiKey').value=s.apiKey||'';
+  $('#apiTemp').value=s.temp||0.8;$('#apiMaxTokens').value=s.maxTokens||2048;
+}
+$('#btnSaveSettings').onclick=()=>{
+  state.settings={apiUrl:$('#apiUrl').value,apiModel:$('#apiModel').value,apiKey:$('#apiKey').value,temp:$('#apiTemp').value,maxTokens:parseInt($('#apiMaxTokens').value)||2048};
+  save();setStatus('设置已保存','ok');
+};
+$$('[data-url]').forEach(b=>b.onclick=()=>{$('#apiUrl').value=b.dataset.url;$('#apiModel').value=b.dataset.model;setStatus('已填入预设，点击保存');});
+
+// Export/Import
+$('#btnExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='novel_data.json';a.click();
+};
+$('#btnImport').onclick=()=>$('#importFile').click();
+$('#importFile').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{try{state=Object.assign(state,JSON.parse(r.result));save();renderCharList();renderWbList();renderChatCharSelect();renderChat();loadSettingsForm();setStatus('导入成功','ok');}catch(err){setStatus('导入失败: '+err.message,true);}};r.readAsText(f);
+};
+
+// Init
+load();
+if(state.autoAdvance)$('#btnAutoAdvance').textContent='自动推进: 开';
+renderChatCharSelect();renderChat();
+</script>
+</body>
+</html>
