@@ -55,7 +55,7 @@ export struct NovelWriter {
       fs.readSync(file.fd, buf)
       fs.closeSync(file)
       const decoder = util.TextDecoder.create('utf-8')
-      const jsonStr = decoder.decodeWithStream(buf)
+      const jsonStr = decoder.decodeWithStream(new Uint8Array(buf))
       return JSON.stringify({ ok: true, data: jsonStr })
     } catch (e) {
       return JSON.stringify({ ok: false, error: String(e) })
