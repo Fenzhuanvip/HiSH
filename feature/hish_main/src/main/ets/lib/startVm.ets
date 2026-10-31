@@ -20,6 +20,18 @@ interface VmOptions {
   init: string,
 }
 
+// 检测 8889 端口是否被占用，仅在可用时添加 hostfwd，避免 QEMU 绑定失败导致网络异常
+function buildHostfwd8889(): string {
+  try {
+    if (napi.checkPortUsed(8889)) {
+      return ''
+    }
+  } catch (e) {
+    // 检测失败时保守起见仍添加转发
+  }
+  return ',hostfwd=tcp::8889-:8889'
+}
+
 function startVm(options: VmOptions): boolean {
   const root = options.rootVda ? options.rootVda : defaultEmulator.rootVda;
   const sharedFolderOption = options.sharedFolderReadonly ? ",readonly" : ""
@@ -39,7 +51,7 @@ function startVm(options: VmOptions): boolean {
   const network = ["-global", "virtio-net-pci.ctrl_guest_offloads=off", "-global", "virtio-net-pci.packed=on",
     "-device", "virtio-net-pci-non-transitional," +
     "netdev=eth0,csum=on,gso=on,guest_tso4=on,guest_tso6=on,guest_ecn=off,mrg_rxbuf=on,tx=bh,mq=on,vectors=10",
-    '-netdev', "user,id=eth0" + options.portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('') + ",hostfwd=tcp::8889-:8889"]
+    '-netdev', "user,id=eth0" + options.portMapping.map(it => `,hostfwd=tcp::${it.host}-:${it.guest}`).join('') + buildHostfwd8889()]
   const shared =
     ["-fsdev", "local,security_model=mapped-file,id=fsdev0,cache=loose,path=" + options.sharedFolder + sharedFolderOption,
     "-device", "virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=hostshare"]

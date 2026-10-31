@@ -25,23 +25,26 @@
         "name": "ohos.permission.KEEP_BACKGROUND_RUNNING"
       },
       {
+        "name": "ohos.permission.PUBLISH_LIVE_VIEW"
+      },
+      {
         "name": "ohos.permission.APPROXIMATELY_LOCATION",
         "reason": "$string:location_reason",
         "usedScene": {
           "abilities": [
             "EntryAbility"
           ],
-          "when": "inuse"
+          "when": "always"
         }
       },
       {
-        "name": "ohos.permission.LOCATION_IN_BACKGROUND",
+        "name": "ohos.permission.LOCATION",
         "reason": "$string:location_reason",
         "usedScene": {
           "abilities": [
             "EntryAbility"
           ],
-          "when": "inuse"
+          "when": "always"
         }
       }
     ],
@@ -60,7 +63,8 @@
         "exported": true,
         "orientation": "auto_rotation_restricted",
         "backgroundModes": [
-          "location"
+          "location",
+          "dataTransfer"
         ],
         "skills": [
           {

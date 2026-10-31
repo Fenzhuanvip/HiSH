@@ -12,6 +12,7 @@ import { defaultEmulator, defaultRootfs, Emulator, RootFilesystem } from '../mod
 import { util } from '@kit.ArkTS';
 import { fileUri, picker } from '@kit.CoreFileKit';
 import { backgroundRunningManager } from '../lib/backgroundRunningManager';
+import { LiveViewManager } from '../lib/LiveViewManager';
 
 const DOMAIN = 0x0000;
 
@@ -28,6 +29,7 @@ export default class EntryAbility extends UIAbility {
 
   onDestroy(): void {
     hilog.info(DOMAIN, 'testTag', '%{public}s', 'Ability onDestroy');
+    LiveViewManager.remove()
   }
 
   async onWindowStageCreate(windowStage: window.WindowStage): Promise<void> {
@@ -72,6 +74,10 @@ export default class EntryAbility extends UIAbility {
       this.promptPortUsedMessage(uiContext, result.portsSkipped)
       this.promptVmStartFailedMessage(uiContext, result.vmStarted)
       this.startRunInBackground(uiContext)
+
+      if (result.vmStarted) {
+        LiveViewManager.create()
+      }
     });
   }
 

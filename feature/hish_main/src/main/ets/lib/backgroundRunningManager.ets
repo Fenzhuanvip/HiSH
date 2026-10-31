@@ -31,17 +31,20 @@ export class backgroundRunningManager {
     try {
       const granted = await backgroundRunningManager.grantLocationPermission(context);
       if (granted) {
+        // 使用低功耗定位策略，确保后台持续产生定位回调，避免系统判定任务空闲而回收
         geoLocationManager.on("locationChange", {
-          interval: 15,
-          locationScenario: geoLocationManager.PowerConsumptionScenario.NO_POWER_CONSUMPTION
+          interval: 30,
+          locationScenario: geoLocationManager.PowerConsumptionScenario.LOW_POWER_CONSUMPTION
         }, () => {
         })
         await startContinuousTask(context)
+        hilog.info(1, TAG, 'startBackground succeeded with LOW_POWER location scenario')
         return true
       }
+      hilog.warn(1, TAG, 'startBackground skipped: location permission not granted')
       return false
     } catch (e) {
-      hilog.info(1, TAG, `startBackground failed Cause:  ${JSON.stringify(e)}`);
+      hilog.error(1, TAG, `startBackground failed Cause:  ${JSON.stringify(e)}`);
       return false
     }
   }
@@ -49,10 +52,14 @@ export class backgroundRunningManager {
   public static async grantLocationPermission(context: common.UIAbilityContext) {
     try {
       const atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
-      const result = await atManager.requestPermissionsFromUser(context, ['ohos.permission.APPROXIMATELY_LOCATION']);
-      return result.authResults[0] === 0;
+      // 同时请求粗略和精确定位权限，精确定位能产生更可靠的回调
+      const result = await atManager.requestPermissionsFromUser(context,
+        ['ohos.permission.APPROXIMATELY_LOCATION', 'ohos.permission.LOCATION']);
+      const granted = result.authResults.every(r => r === 0)
+      hilog.info(1, TAG, `grantLocationPermission result: ${JSON.stringify(result.authResults)}, granted: ${granted}`)
+      return granted
     } catch (e) {
-      hilog.info(1, TAG, `grantLocationPermission failed Cause:  ${JSON.stringify(e)}`);
+      hilog.error(1, TAG, `grantLocationPermission failed Cause:  ${JSON.stringify(e)}`);
       return false
     }
   }
@@ -60,10 +67,10 @@ export class backgroundRunningManager {
   public static async stopBackground(context: common.UIAbilityContext): Promise<boolean> {
     try {
       geoLocationManager.off('locationChange')
-      stopContinuousTask(context)
+      await stopContinuousTask(context)
       return true
     } catch (e) {
-      hilog.info(1, TAG, `stopBackground failed Cause:  ${JSON.stringify(e)}`);
+      hilog.error(1, TAG, `stopBackground failed Cause:  ${JSON.stringify(e)}`);
       return false
     }
   }

@@ -431,11 +431,10 @@ export default struct WebTerminal {
 
   async resize(width: number, height: number): Promise<void> {
     hilog.info(DOMAIN, "WebTerminal", 'on resize: %{public}d, %{public}d', width, height)
-
-    if (this.resizeTimeout !== undefined) {
-      clearTimeout(this.resizeTimeout!!)
-    }
-    this.resizeTimeout = setTimeout(() => this.sendInput('\x1b' + `[8;${height};${width}t`), 100)
+    // 存储终端行列数，VmStatusBar 定时刷新时通过 QGA setTtySize (TIOCSWINSZ) 设置 Guest 串口终端大小。
+    // 不再向串口发送 \x1b[8;rows;cols;t (XTWINOPS)，Linux 串口终端不认该 xterm 序列，会回显乱码。
+    AppStorage.setOrCreate(appOption.terminalCols, width)
+    AppStorage.setOrCreate(appOption.terminalRows, height)
   }
 
   // 性能优化：输出缓冲区

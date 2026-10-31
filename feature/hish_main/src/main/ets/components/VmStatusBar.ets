@@ -2,6 +2,7 @@ import { hilog } from '@kit.PerformanceAnalysisKit'
 import { CustomContentDialog } from '@kit.ArkUI'
 import QemuAgent, { CpuStats } from '../lib/QemuAgent'
 import { QemuAgentManager, AgentPriority } from '../lib/QemuAgentManager'
+import { LiveViewManager } from '../lib/LiveViewManager'
 import appOption from '../model/appOption'
 import { util } from '@kit.ArkTS'
 
@@ -200,6 +201,7 @@ export struct VmStatusBar {
       // 关机或暂停状态，标记 Agent 为断开
       this.status.agentConnected = false
       this.stopRefreshTimer()
+      LiveViewManager.remove()
     }
   }
 
@@ -475,6 +477,11 @@ export struct VmStatusBar {
 
         // 检查 SSH
         this.status.sshRunning = await agent.isSshRunning()
+      }
+
+      // 更新实况窗（锁屏/熄屏显示 VM 状态）
+      if (this.status.agentConnected) {
+        LiveViewManager.update(this.status.cpuUsage, this.status.memoryUsage, this.status.memoryTotal)
       }
 
       // 只有在非外部传入 agent 时才释放
